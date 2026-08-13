@@ -30,8 +30,9 @@
 - 原文把"JS 插件不调 LLM"混同为"翻译必须在会话内由 agent 做"，导致设计只有一种模式。修订：
   - **约束不变**：插件包（Node 侧）绝不直接调 LLM。
   - **Mode A（agent-as-translator，精品/交互）**：翻译由 agent/subagents 在 DSH 会话内完成（原设计路径）。
-  - **Mode B（agent-as-operator，批量/可复现）**：agent 作为操作者/编排者，通过工具调用 Itranslation 的 Python 管线（CLI/headless）完成翻译——**LLM 调用发生在 Python 侧**，沿用 CLI 的质量链（句数重试、反思/修订、RAT、batch 定价、前缀缓存）。这正是 Itranslation 自身 SOLUTION.md Q1 的定位："agent 作为流水线的操作者/编排者"。
-- 两模式共用同一套确定性工具与文件协议，差异只在"谁调 LLM"；SKILL.md 各给一条工作流。详见 DESIGN.md §1.3。
+  - **Mode B（agent-as-operator，批量/可复现）**：agent 作为操作者/编排者，**用 DSH 现有 bash 工具直接运行 Itranslation CLI**（`uv run python translate_book.py ...`）完成翻译——LLM 调用发生在 Python 侧，沿用 CLI 的质量链（句数重试、反思/修订、RAT、batch 定价、前缀缓存）。这正是 Itranslation 自身 SOLUTION.md Q1 的定位："agent 作为流水线的操作者/编排者"。**不建插件↔Python 桥**（D14）。
+- 两模式共用同一套确定性文件协议（PROTOCOL.md），差异只在"谁调 LLM"；SKILL.md 各给一条工作流。详见 DESIGN.md §1.3。
+- **2026-08-14 二次修订（D14 连带）**：原"两模式共用同一 Python 核心"改为——**共享边界是协议，不是代码**。插件模式的确定性原语（分块/组装/审计/checkpoint/glossary）用 **TypeScript 原生实现**（本仓库，与 DSH 生态同构）；Python 核心仅在 Itranslation CLI 自身议题（Q1–Q3）与 Mode B（bash 直跑）中涉及。
 
 ### D6（2026-08-14）L2 工具粒度：每原语一个工具（用户选定）
 
@@ -55,13 +56,10 @@
   4. 新产物概念：人物声音表（style 协议）、著名台词策略（沿用经典译本 vs 重译）、逐行双语对齐语料（Itranslation Q1 的 TM 目标，插件模式天然产出）。
 - Gatsby 降级为 M5 可选回归（散文路径验证）。
 
-### D10（2026-08-14）Python 依赖方式定案：`ctx.subprocess` 直调 + 路径配置 + 缺失即失败（调研代理核实后定稿）
+### D10（2026-08-14）Python 依赖方式定案：`ctx.subprocess` 直调 + 路径配置 + 缺失即失败 —— **已被 D14 推翻（桥取消）**
 
-- **DSH 没有一等公民方式声明插件的外部运行时依赖**（`dsh` 段仅 `bundle.patch`/`profile.bundles` 两键，`packages/boot/app-boot/src/profile.ts:41-62`）。三条既有惯例中选定最贴 seam 的**方案 A**：
-  1. 插件 `inject: ['subprocess']`，用 `ctx.subprocess.resolveExecutable(pythonPath)` 定位解释器（绝对路径 X_OK 校验 / 裸名走 scrub 后 PATH；PATH/HOME/locale 保留，key/token 与 `DSH_*` 剔除）；缺失即响亮报错。
-  2. `ctx.subprocess.spawn({argv:[python, <itranslationDir>/src/itranslation_api.py, <op>, '--json', ...], cwd, stdio, graceMs, signal})`：argv 不经 shell、树级终止、exec.signal 接入工具取消。**禁用裸 `child_process`**。
-  3. 路径配置走 cordis.patch.yml 行 `config: { pythonPath, itranslationDir }`（个人自用改 YAML 即可；开源时可升级 settings namespace）。
-  4. 版本 pin：README 约定 pin Itranslation commit/tag + `--version` 启动探针。
+- 调研结论本身仍有效（DSH 没有一等公民方式声明插件的外部运行时依赖；三条惯例与证据见 RESEARCH-DSH.md §6），作为 **Mode B 类型化编排议题重启时的预备知识**保留。
+- 原方案 A（`resolveExecutable` + `spawn` argv 直调 + 路径配置 + 失败即报错）撤销：当前设计无任何外部进程依赖。
 - 被否方案及理由：打包单文件二进制（ripgrep 路线，个人项目过度工程，留作开源时升级路径）；postinstall 拉取（pnpm ≥10 拦 git 依赖 prepare，`apps/cli/src/plugin.ts:149-155`）；README-only host 依赖（官方评为下策，`2026-08-01-packaged-ripgrep-search.md`）。
 - 证据全文见 RESEARCH-DSH.md §6。
 
@@ -81,6 +79,24 @@
 - 工具链对齐已核实的 DSH 官方惯例（`packages/fs/tool-fs/package.json` 结构与根 scripts：tsdown 构建、oxlint、vitest、lefthook）。
 - 影响：M1 起所有会话与提交必须遵守；违反红线 R1–R9 的提交拒绝重做。
 
+### D14（2026-08-14）全 TypeScript 且不建桥（用户拍板："其他人都是用 TypeScript"）
+
+- **插件（含确定性原语）100% TypeScript 单仓实现**：prepare/chunk/brief/glossary/style/checkpoint/assemble/audit/status 全部本仓库 TS 原生实现，与 DSH 生态完全同构，**零外部运行时依赖**（无 Python、无 `ctx.subprocess` 桥、无 pin/探针/路径配置）。
+- 可行性依据（已量化）：需移植的原语 = chunker/assembler/consistency/format_protector + 预处理，共 1349 行 Python（插件模式子集约 1000 行，extractor 的 PDF/EPUB 逻辑不需要）；配套测试 497 行一并移植为 golden。
+- **共享边界是协议**：与 Itranslation CLI 产物的互操作靠 PROTOCOL.md 文件协议（glossary/checkpoint/␟ 对齐格式），不靠共享代码；两实现漂移用协议一致性 golden 测试兜底（DEVELOPMENT §7）。
+- **Mode B 不建桥**：agent 用 DSH 现有 bash 工具直跑 `uv run python translate_book.py`（CLI 自带 checkpoint/审计/RAT），无需插件侧子进程机制。
+- 连带影响：M1–M4 完全不动 Itranslation 仓库（原 M2 的 ACT/SCENE、行模式、prepare_gutenberg、thin CLI 全部改为本仓库 TS 实现）；D10 撤销；D5 二次修订；PROTOCOL.md §2 thin CLI 契约降级为"Mode B 议题时的预留知识"。
+- DSH 调研的 `ctx.subprocess`/依赖规范章节保留（RESEARCH-DSH.md §5/§6），标注为预留知识。
+
+### D15（2026-08-14）完全按 DSH 插件生态对齐（用户拍板）
+
+- **规范来源**：DSH 官方 cookbook 三件套为最高准绳（只读 checkout `/home/yisan/deepseek-harness/docs/cookbook/`）：
+  1. `adding-a-package.md` —— 包清单与不变式（package.json 字段、`files` 精确清单、tsconfig、README 规范结构、验证序列）；
+  2. `adding-a-tool.md` —— 工具契约源真（`defineTool` 全规则、execute 契约、UI 卡片呈现与 presenter 纯函数铁律）；
+  3. `extension-cookbook.md` —— 特性→机制映射（我们的特性 = `ctx.tools.register` + `ctx.systemPrompt.section` + skill + 内置 subagent/文件工具）。
+- 落实：DEVELOPMENT.md §4 重写为生态一致性规范（含包不变式、工具契约、README 结构、角色命名表、验证序列与生态对齐清单）；新建仓库根 `AGENTS.md`（会话交接，生态惯例位置）。
+- 与 D14 合意：单包插件（single-purpose plugin = one package，不需要 Service/Provider 拆分）、无外部运行时依赖、与 DSH 内置工具（bash/subagent/fs/skill）组合使用。
+
 ## 修订记录（2026-08-14，评估轮）
 
 - 用户对旧路线图（P1–P5）不满意 → DESIGN.md §8 重写为里程碑制（M0–M5，Hamlet 主线）。
@@ -88,6 +104,8 @@
 - D5 拆分 Mode A/B（agent 定位张力：本仓库原设计 = agent 翻译；Itranslation Q1 = agent 编排，两者应收进同一设计）。
 - D1 的"会话长上下文"卖点降级为"工作缓存"，文件协议升格为真相源。
 - D11/D12 拍板（著名台词完全重译；M4 只做 Mode A）。
+- D14 拍板（全 TS 且不建桥）→ D5 二次修订（共享边界=协议）、D10 撤销（桥取消）、M2 收回本仓库。
+- D15 拍板（完全按 DSH 插件生态）→ DEVELOPMENT.md §4 生态一致性规范 + 仓库根 AGENTS.md。
 
 ## 未决问题（新对话可继续）
 

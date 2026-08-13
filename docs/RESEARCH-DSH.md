@@ -1,7 +1,8 @@
 # DSH 机制调研（2026-08-14，两轮完成，v2）
 
 > 调研对象：`/home/yisan/deepseek-harness`（DSH checkout，只读参考）。本文档让新对话**无需重做调研**；细节核对时按文末路径清单去 checkout 里看。
-> v2 增补：外部依赖规范（用户点名要求）、上下文三闸（spill/pruner/compaction）、subagent 回传语义、`ctx.subprocess` seam 全契约、profile/bundle 精确机制。所有结论附文件路径+行号。
+> v2 增补：外部依赖规范（用户点名要求）、上下文三闸（spill/pruner/compaction）、subagent 回传语义、`ctx.subprocess` seam 全契约、profile/bundle 精确机制、官方 cookbook 三件套。所有结论附文件路径+行号。
+> **D14/D15 状态注记**：桥已取消、全 TS（D14）——§5（子进程 seam）与 §6（外部依赖规范）当前是 **Mode B 议题的预留知识**，不在实现路径上；§2/§3/§4/§7 是当前直接生效的契约依据。生态对齐以 cookbook 三件套为准绳（§8.5）。
 
 ## 1. 插件模型（Cordis）
 
@@ -93,10 +94,19 @@
 - 客户端插件改动需要 `pnpm run dev:web`（从 DSH checkout）在跑以重编译 bundle；`apps/web` 外壳与普通包改动须重建后刷新页面。
 - 命令注册：`packages/interaction/commands`（`/` 斜杠命令，`2026-07-19-plugin-command-registration.md`）。
 
+### 8.5 官方 cookbook（生态对齐准绳，决策 D15）
+
+三件套是"完全按 DSH 插件生态"的最高规范来源，DEVELOPMENT.md §4 与附录 B 由此派生：
+
+- `docs/cookbook/adding-a-package.md` —— 新包清单：目录布局、package.json 不变式（`main`/`types`/`exports`/`files` 精确清单、cordis 双列 peer+dev、schemastery 进 dependencies、`.ts` 显式后缀相对导入）、tsconfig/knip 注册、包拓扑与**角色命名词汇表**（Store/Engine/Presenter/Registry/Runtime/Policy…）、README 规范结构（Model Experience 三段 + Known Limitations and Deferred Work）、验证序列（install → constraints → typecheck → lint → build → hygiene）。
+- `docs/cookbook/adding-a-tool.md` —— 工具契约源真：`defineTool` 最小形态、execute 契约（args 自动校验+只读、canonical 单一 JSON 值、**基础设施失败 throw / 领域非理想结果 = canonical 值**、exec.signal、presentationMeta）、长任务走 `ctx.jobs`、策略层选择（pre-execute/guard/execute/post-execute/result）、Code Mode 免费可达、UI 卡片五类（generic/terminal/diff/search/web）与 presenter 铁律（纯函数、UI 格式化不进模型结果、软校验防回放崩）。
+- `docs/cookbook/extension-cookbook.md` —— 特性→机制映射表（我们的映射见 DEVELOPMENT §4.3）：工具→`ctx.tools.register`、提示词段→`ctx.systemPrompt.section`、skill→section+tool、并行→内置 subagent、文件→内置 tool-fs。
+
 ## 9. 关键路径清单（核对细节时用）
 
 ```
 deepseek-harness/
+├── docs/cookbook/{adding-a-package,adding-a-tool,extension-cookbook}.md  # 生态对齐准绳（D15）
 ├── docs/cordis-tutorial/  docs/cordis-api/  docs/cookbook/extension-cookbook.md
 ├── docs/subsystems/tools.md            # ToolDefinition 全字段
 ├── docs/subsystems/subprocess.md       # ctx.subprocess 契约（spawn/resolveExecutable）

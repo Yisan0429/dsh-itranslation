@@ -1,40 +1,22 @@
 # 协议契约（PROTOCOL.md，v1）
 
-> 本文件是**唯一权威协议契约**：插件（本仓库）与 Itranslation Python 侧（`/home/yisan/Itranslation`）之间的 thin CLI 调用契约、工作区文件协议、对齐契约全部在此定义。任何一侧实现与此不符即视为缺陷。
+> 本文件是**唯一权威协议契约**：插件模式与 Itranslation CLI 产物之间的互操作边界 = 工作区文件协议 + 对齐契约（§3/§5），两侧实现语言各自选择（D14：本仓库 TS、Itranslation Python），**共享的是协议不是代码**。
 > 变更规则见 DEVELOPMENT.md §6（破坏性变更 = 版本号升级 + 双仓同步落地）。
-> 当前状态：v1 草案（M1 用文件协议部分；M2 定稿 thin CLI 部分并回填实测修正）。
+> 当前状态：v1（M1 起生效的文件协议部分）；§2 thin CLI 契约与 §4 子进程桥 = **Mode B 议题的预留知识**（D14 桥取消，当前不实现、不依赖）。
 
 ## 1. 总则
 
 - 每个协议载体带 `version` 字段（整数）；minor 变更向后兼容（旧字段保留、新字段可缺省），破坏性变更升大版本并双仓同步。
-- 幂等：所有 op 与工具同参数重放，结果与文件状态一致（除 `updated_at` 时间戳）。
-- 错误模型统一：`{"ok": false, "error": "<中文可行动文案>", "code": "<STABLE_CODE>"}`。
+- 幂等：所有工具同参数重放，结果与文件状态一致（除 `updated_at` 时间戳）。
+- 错误模型（对齐 DSH 工具契约惯例，adding-a-tool.md）：**基础设施失败 = 工具抛异常**（registry 记 isError）；**领域非理想结果 = 成功 canonical 值** `{"ok": false, "error": "<中文可行动文案>", "code": "<STABLE_CODE>"}`——失配、文件缺失等是"值"不是异常。
 - 编码：全部 UTF-8；换行 `\n`；路径分隔 `/`（相对工作区根）。
 
-## 2. thin CLI 契约（M2 实现）
+## 2. thin CLI 契约 ——【预留：Mode B 议题，当前不实现（D14）】
 
-### 2.1 进程调用
+> 本节省略原子进程调用细节；若未来 Mode B 需要类型化编排（agent 不经 bash 直跑 CLI），先重开决策（DECISIONS），再按 RESEARCH-DSH.md §5/§6 的 `ctx.subprocess` 调研结论补全本节。当前 Mode B 形态 = agent 用内置 bash 工具直跑 `uv run python translate_book.py`，无插件侧进程。
+> op 语义与下列**工具级契约（§2.1 表格）保持一致**——即便实现语言不同，canonical 结果形状不变。
 
-插件经 `ctx.subprocess.spawn` 单次短命调用（DEVELOPMENT.md R3）：
-
-```
-argv:   [<pythonPath>, "<itranslationDir>/src/itranslation_api.py", <op>, "--json", ...op 参数]
-cwd:    显式（插件 workspace 根；不得依赖 process.cwd() 默认值）
-stdio:  stdin 'ignore'；stdout collect {maxBytes: 1MB}；stderr collect {maxBytes: 64KB}
-env:    显式合并（scrub 后）；不隐式传密钥
-graceMs / signal: 由工具 timeoutMs 与 exec.signal 决定
-```
-
-### 2.2 版本探针
-
-```
-$ python src/itranslation_api.py --version
-itranslation_api 1.0.0 (api=1, commit=4c9e0e7)
-```
-
-- `api=1` 指本协议 §2.3 op 契约版本；插件 pin 校验两者（DEVELOPMENT §6），不符即报错。
-
-### 2.3 op 清单（`--json` 单行 JSON 输出）
+### 2.1 op/工具契约（形状对 TS 工具与未来 thin CLI 均有效）
 
 | op | 参数 | 结果（ok:true 时） | 幂等性说明 |
 |---|---|---|---|
@@ -51,8 +33,9 @@ itranslation_api 1.0.0 (api=1, commit=4c9e0e7)
 | `audit` | `book` | `{drifts: [{term, translations, locations}], total}` | 读 |
 | `status` | `book` | `{scenes: [{index, state, chunks_done, content_hash}], counts}` | 读 |
 
+- 参数名：TS 工具为 schemastery DSL（camelCase）；表内 `--gutenberg` 记法仅为语义说明，不表示 CLI flag。
 - 所有路径参数解析于工作区根内（R4 白名单：`input/`、`state/`、`output/`、`reports/`）；book slug 匹配 `^[a-z0-9-]+$`。
-- 错误码表（稳定，插件据此给用户提示）：
+- 错误码表（稳定；领域非理想结果以 `ok:false` canonical 值返回，不抛异常）：
 
 | code | 含义 |
 |---|---|
@@ -135,14 +118,12 @@ reports/<book>/audit_*.json
 - **句模式（prose）**：句数对齐正文句（context 句不译、不计数），§/¶ 结构标记原样保留。
 - 契约遵守度由 `assemble` 的 mismatch 统计判定：`mismatch>0` 即质量闸门失败（DESIGN §4），需定位重译。
 
-## 4. 子进程桥错误传播
+## 4. 子进程桥错误传播 ——【预留：Mode B 议题，当前不适用（D14）】
 
-- thin CLI 非零退出 + stderr 非空 → 插件归一为 `ok:false` + code（按 §2.3 错误码表，无法识别时 `E_IO`）+ stderr 截断摘要（≤2KB）。
-- 超时/取消（exec.signal）→ 插件报 `已取消/超时`，进程树终止（graceMs 内）。
-- python 缺失/版本不符 → 插件在**首次调用前**探针检查并给出中文修复指引（指向 DEVELOPMENT §6 pin 矩阵与 Itranslation 路径配置）。
+> 桥已取消（D14）。本节省略原 thin CLI 进程错误传播细节；若未来重开 Mode B 类型化编排议题，按 RESEARCH-DSH.md §5/§6 补全（resolveExecutable 失败即报错、超时/取消经 graceMs 树级终止、stderr 截断摘要 ≤2KB 归一为 `ok:false`）。
 
 ## 5. 版本兼容策略
 
 - 文件协议：读取方必须容忍未知字段（向前兼容）；写入方不得删字段（除非大版本）。
-- thin CLI：`api=N` 双方一致才调用；N 升档 = 破坏性变更，须双仓同步 + pin 更新 + 联测记录。
+- 实现一致性：本仓库 TS 实现与 Itranslation Python 实现的互操作以 §3 文件协议 + golden 测试为准（DEVELOPMENT §6）；任何一侧改动协议须双仓同步 + 联测记录。
 - 任何协议改动必须同时更新本文件与 DECISIONS（决策条目），再动实现（docs-first）。

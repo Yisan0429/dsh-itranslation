@@ -8,8 +8,8 @@
 1. **卖点夸大**：v1 称"全书状态活在会话里"。DSH 实际有三道闸把逐字内容逐出上下文：spill（工具结果 >50KB 落盘）、tool-result-pruner（>8KB 只留头尾）、compaction（旧区间 LLM 摘要化，只留 ~16% 尾巴）。**会话上下文只能是工作缓存；工作区文件才是唯一真相源。**
 2. **D5 一刀切**：把"插件不调 LLM"混同为"翻译必须由 agent 在会话内做"，漏掉了 agent-as-operator 模式——而 Itranslation 自身 SOLUTION.md Q1 的定位正是"agent 作为流水线的操作者/编排者"。v2 拆分 Mode A / Mode B（§1.3）。
 3. **subagent 回传机制没设计**：DSH 的 subagent 把**最后一次 assistant 消息全文**回传给父代理（非摘要）。章节 fan-out 若整章回传会撑爆父上下文；正确姿势是 subagent 写文件、只回短报告（dsh-translate-docs skill 即此解法）。v2 把它固化为"简报驱动"工作流（§6）。
-4. **Python 桥不符合 DSH 规范**：v1 写"Node `child_process` 长驻调用"。DSH 有一等 seam `ctx.subprocess`（`spawn`/`resolveExecutable`/env scrub/树级终止），ACP/LSP/ripgrep 全走它；v2 改用它（§3.2）。
-5. **P1 headless 接口过度设计**：长驻进程 + JSON 行协议对纯计算原语（chunker/assembler/consistency，无模型加载）是过度工程。v2 改为**单次调用 thin CLI**（`python <repo>/src/itranslation_api.py <op> --json`），长驻进程降级为可选优化。
+4. **Python 桥不符合 DSH 规范**：v1 写"Node `child_process` 长驻调用"。DSH 有一等 seam `ctx.subprocess`（`spawn`/`resolveExecutable`/env scrub/树级终止），ACP/LSP/ripgrep 全走它；v2 一度改用该 seam，**D14 起（全 TS）连桥一起取消**——共享边界改为文件协议（调研结论留档 RESEARCH-DSH.md §5/§6 作 Mode B 预留知识）。
+5. **P1 headless 接口过度设计**：长驻进程 + JSON 行协议对纯计算原语（chunker/assembler/consistency，无模型加载）是过度工程。v2 曾改为单次调用 thin CLI；**D14 起 thin CLI 也取消**（本仓库 TS 原生实现，见 §3.2）。
 6. **验收书与工具假设全按散文小说（Gatsby）设计**；首书改为 **Hamlet（诗体戏剧）**后已核实的三个缺口：`parse_structure` 不认 ACT/SCENE；句切分面向散文段落、不适用诗行；`prepare_gutenberg.py` 尚不存在（§7）。
 7. **路线图是工序列表（P1–P5）而非成果里程碑**；v2 改为 M0–M5 里程碑制，Hamlet 为主线（§8）。
 8. **人机协作循环只挂在远期 L3 UI 上**；协作首先是协议问题（审校记录、裁定、重译语义），v2 落入文件协议与工作流（§5、§6），UI 只是它的呈现层。
@@ -62,7 +62,7 @@
 
 ### L2 — 工具插件包（核心价值）
 
-npm 包（本仓库）：`"dsh": {"bundle": {"patch": "./cordis.patch.yml"}}`，经 `dsh plugin --profile <name> add <git-spec>` 装入 profile。注册模型工具（§4）+ `ctx.subprocess` 桥（§3.2）+ 可选包内 skill provider。插件不调 LLM（D5）。
+npm 包（本仓库）：`"dsh": {"bundle": {"patch": "./cordis.patch.yml"}}`，经 `dsh plugin --profile <name> add <git-spec>` 装入 profile。**100% TypeScript 单包插件**（D14/D15）：注册模型工具（§4）+ 确定性原语 TS 原生实现（§3.2）+ 可选包内 skill provider。插件不调 LLM（D5）。包结构/工具契约/README 结构完全按 DSH 官方 cookbook（DEVELOPMENT.md §4 + 附录 B）。
 
 ### L3 — Web 客户端 UI 插件（远期）
 
@@ -74,8 +74,8 @@ npm 包（本仓库）：`"dsh": {"bundle": {"patch": "./cordis.patch.yml"}}`，
 DSH 会话（agent，长上下文但会被压缩 → 只当缓存）
  ├─ skill: itranslate-book（工作流地图 + 翻译契约）
  ├─ tools: itranslate.*（13 个，每原语一个；canonical 输出结构化、render 只投影短摘要）
- │         └─ ctx.subprocess.spawn([python, <itranslationDir>/src/itranslation_api.py, <op>, --json, ...])
- │            （argv 不经 shell；env scrub 后显式合并；graceMs + exec.signal 取消；树级终止）
+ │         └─ TS 原生确定性原语（ChunkEngine/AssembleEngine/AuditEngine + *Store，§3.2）
+ │            文件 I/O 走 ctx.fs（受 sandbox 治理）；零外部进程（D14）
  ├─ subagents: 翻译单元 fan-out（简报驱动：读 brief 文件 → 翻译 → 写 drafts 文件 → 短报告）
  └─ 工作区文件（唯一真相源，§5）:
      input/<book>.md · state/<book>/{glossary.json,style.json,briefs/,drafts/,checkpoints/,reviews/}
@@ -84,7 +84,7 @@ DSH 会话（agent，长上下文但会被压缩 → 只当缓存）
 
 ### 3.1 上下文预算三闸（设计原则）
 
-DSH 真实机制（RESEARCH-DSH.md §5 核实）：
+DSH 真实机制（RESEARCH-DSH.md §7 核实）：
 
 - **spill**：工具结果 >50KB（`maxInlineBytes: 50000`）落盘、模型只见文件引用；
 - **tool-result-pruner**：>8KB（threshold 8192）的工具结果只留头 4096 + 尾 1024 字符；
@@ -92,35 +92,33 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 
 设计原则：**大对象只落盘，模型只见元数据与短报告**。chunk/译文/brief 全文一律写工作区文件；工具 canonical 结果可以携带完整数据（供程序消费），但 `render` 投影只给模型短摘要（路径、计数、状态）；subagent 结果必须"写文件 + 短报告"。
 
-### 3.2 Python 桥（DSH 规范路径，调研定案）
+### 3.2 确定性原语：TS 原生实现（D14/D15）
 
-采用调研结论的**方案 A**（`ctx.subprocess` 直调 + 路径配置 + 缺失即失败）：
+**共享边界是协议，不是代码**（D14 二次修订）：插件模式的确定性原语在本仓库用 TypeScript 原生实现，与 Itranslation CLI 产物的互操作靠 PROTOCOL.md 文件协议保证。已量化（DECISIONS D14）：需移植的原语 = chunker/assembler/consistency/format_protector + Gutenberg 预处理，共 1349 行 Python（插件模式子集约 1000 行；extractor 的 PDF/EPUB 逻辑不需要）；配套测试 497 行一并移植为 golden。
 
-- 插件 `inject: ['subprocess']`，用 `ctx.subprocess.resolveExecutable(pythonPath)` 定位解释器（绝对路径做 X_OK 校验；裸名走 scrub 后 PATH——PATH/HOME/locale 保留，key/token 与 `DSH_*` 被剔除，敏感变量须显式 `env` 传入）。
-- `ctx.subprocess.spawn({ argv: [python, script, op, '--json', ...], cwd, stdio: {stdin:{data}|'ignore', stdout:{maxBytes}, stderr:{maxBytes}}, graceMs, signal })`：argv 不经 shell（无引号注入）；`exec.signal` 接入工具取消；终止树级。
-- 路径配置：cordis.patch.yml 行 `config: { pythonPath: 'python3', itranslationDir: '/home/yisan/Itranslation' }`（个人自用，改 YAML 即可；后续可选 settings namespace 暴露）。
-- 每次调用 = 一次短命进程（纯计算原语，无模型加载，秒级完成）；**长驻进程是可选优化，不做默认**。若将来需要，用 piped stdio + ndjson 帧 + 请求关联 id（ACP 的模板）。
-- 版本 pin：README 约定 pin Itranslation commit/tag；工具启动探针 `itranslation_api.py --version`，版本不符/缺失即响亮报错。
-- 备选路线已调研但**不采用**：打包单文件二进制（ripgrep 路线，个人项目过度工程）、postinstall 拉取（pnpm ≥10 拦 git 依赖 prepare）、README-only（官方评为下策）。
+- 实现分块：`ChunkEngine`（结构解析 ACT/SCENE + 句/行切分 + 打包）、`AssembleEngine`（body_join/first_lock + 失配统计 + txt/md/epub 输出）、`AuditEngine`（expected/observed 计数 + 漂移报告）、`FormatProtector`（占位符）、`GlossaryStore`/`StyleStore`/`CheckpointStore`（文件协议 CRUD + schema 校验）——角色命名按 DSH 词汇表（DEVELOPMENT §4.5）。
+- 行为一致性靠 **golden 测试**：移植 Itranslation 同源测试（`tests/test_chunker.py` 等）为本仓库 vitest fixtures，注明来源 commit；两边漂移时以"协议语义 + golden 用例"裁决（DEVELOPMENT §6）。
+- 与 CLI 的同构点：文件协议（glossary/checkpoint/drafts）、`␟` 对齐、§/¶ 标记——PROTOCOL.md 是唯一权威。
+- Mode B（M5 可选）：agent 用内置 bash 工具直跑 `uv run python translate_book.py`，无需插件侧进程（原 `ctx.subprocess` 桥已随 D14 取消，调研结论留档于 RESEARCH-DSH.md §5/§6 作预留知识）。
 
 ## 4. 工具清单（L2，每原语一个，决策 D6）
 
 模型可见字段只有 name/description/parameters（allowlist）；每个工具必须声明 `output.schema` + `render` 投影。
 
-| 工具 | 功能 | 对应 Itranslation 模块 | render 给模型的内容（canonical 可更全） |
+| 工具 | 功能 | TS 实现模块（golden 来源 = Itranslation 同名模块/测试） | render 给模型的内容（canonical 可更全） |
 |---|---|---|---|
-| `itranslate.prepare` | Gutenberg/纯文本预处理（页眉页脚、折行、ACT/SCENE→`##`、人物名行/舞台指示标记），写 `input/<book>.md` | extractor + `scripts/prepare_gutenberg.py`（M2 新建） | 输出路径 + 结构列表 + 字符数 |
-| `itranslate.chunk` | 按结构切分（散文句级 / 诗行行级），写 chunks 文件 | chunker（M2 补 ACT/SCENE + 行模式） | chunks 文件路径 + 单元数/行数 + 超长行标记 |
-| `itranslate.brief` | 为翻译单元渲染简报（契约 + 正文 + glossary/style 命中 + 邻近样例 + 句/行数要求），写 brief 文件 | translator 提示词工艺（`_build_translation_prompt`）+ RAT 检索 | brief 文件路径 + 命中术语数 |
-| `itranslate.glossary_get` | 读术语表（按书 slug） | consistency 模型 + 文件协议 | 术语数 + 关键条目摘要 |
+| `itranslate.prepare` | Gutenberg/纯文本预处理（页眉页脚、折行、ACT/SCENE→`##`、人物名行/舞台指示标记），写 `input/<book>.md` | `PrepareEngine`（新增；戏剧版式为 Hamlet 专项） | 输出路径 + 结构列表 + 字符数 |
+| `itranslate.chunk` | 按结构切分（散文句级 / 诗行行级），写 chunks 文件 | `ChunkEngine`（golden：chunker.py + test_chunker.py；补 ACT/SCENE + 行模式） | chunks 文件路径 + 单元数/行数 + 超长行标记 |
+| `itranslate.brief` | 为翻译单元渲染简报（契约 + 正文 + glossary/style 命中 + 邻近样例 + 句/行数要求），写 brief 文件 | `BriefRenderer`（工艺参照 translator.py `_build_translation_prompt`；无向量库） | brief 文件路径 + 命中术语数 |
+| `itranslate.glossary_get` | 读术语表（按书 slug） | `GlossaryStore`（golden：consistency.py + test_consistency.py） | 术语数 + 关键条目摘要 |
 | `itranslate.glossary_set` | 新增/更新单条术语（含 pending/alias 候选） | 同上 | 确认行 |
-| `itranslate.glossary_merge` | 批量合并术语（人工/agent 裁定后） | `merge_model` | 增/改/删计数 |
-| `itranslate.style_get` | 读风格书（人物声音/策略） | kg_builder 风格区概念扩展 | 条目数摘要 |
+| `itranslate.glossary_merge` | 批量合并术语（人工/agent 裁定后） | 同上（merge 语义） | 增/改/删计数 |
+| `itranslate.style_get` | 读风格书（人物声音/策略） | `StyleStore` | 条目数摘要 |
 | `itranslate.style_set` | 更新风格书 | 同上 | 确认行 |
-| `itranslate.checkpoint_load` | 读场景进度（含 content_hash） | `_load_checkpoint` 同构 | 状态摘要（completed/failed 块） |
-| `itranslate.checkpoint_save` | 写场景进度 | `_save_checkpoint` 同构 | 确认行 |
-| `itranslate.assemble` | 组装（body_join/first_lock）+ 占位符恢复 + 输出 TXT/MD/EPUB | assembler + format_protector | 输出路径 + 失配统计 |
-| `itranslate.audit` | 漂移审计报告（expected vs observed） | consistency.audit_all | 漂移条目数 + 位置清单 |
+| `itranslate.checkpoint_load` | 读场景进度（含 content_hash） | `CheckpointStore`（格式与 CLI 同构） | 状态摘要（completed/failed 块） |
+| `itranslate.checkpoint_save` | 写场景进度 | 同上 | 确认行 |
+| `itranslate.assemble` | 组装（body_join/first_lock）+ 占位符恢复 + 输出 TXT/MD/EPUB | `AssembleEngine` + `FormatProtector`（golden：assembler.py + format_protector.py 及测试） | 输出路径 + 失配统计 |
+| `itranslate.audit` | 漂移审计报告（expected vs observed） | `AuditEngine`（golden：consistency.py audit_all） | 漂移条目数 + 位置清单 |
 | `itranslate.status` | 全书进度总览（各场景状态、checkpoint、术语/风格条目数、待审清单） | pipeline 结果 + 文件扫描 | 进度表（纯文本） |
 
 设计要点：
@@ -214,7 +212,7 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 
 ### 6.2 Mode B（agent-as-operator）
 
-同一文件协议；翻译步替换为调 Itranslation CLI（`translate_book.py`，含 `--from-checkpoint`）或 thin API 的 `translate_chapter`；agent 负责编排、术语裁定、审校、审计。LLM 与定价在 Python 侧。
+同一文件协议；agent 用 DSH 内置 bash 工具直跑 Itranslation CLI（`uv run python translate_book.py`，CLI 自带 checkpoint/审计/RAT/反思链），agent 负责编排、术语裁定、审校。LLM 与定价在 Python 侧。**无插件侧子进程（D14）**。
 
 ### 6.3 人机协作点（协议层，UI 只是呈现）
 
@@ -230,13 +228,13 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 
 已核实 Itranslation 现状与所需改动（详见 ITRANSLATION-CORE.md §4）：
 
-| # | 事实（已核实） | 影响 | 改动（M2，Itranslation 仓库） |
+| # | 事实（已核实，Itranslation 侧） | 影响 | 改动（本仓库 TS 实现，golden 参照 Itranslation） |
 |---|---|---|---|
-| 1 | `parse_structure` 只认 `CHAPTER/BOOK/PART/Section` 与 `#/##`，不认 `ACT/SCENE`（`src/chunker.py:321-336`） | Hamlet 整本会被识别为 1"章" | 补 `ACT I`/`SCENE II.` 正则 + 人物名行/舞台指示识别 |
+| 1 | `parse_structure` 只认 `CHAPTER/BOOK/PART/Section` 与 `#/##`，不认 `ACT/SCENE`（`src/chunker.py:321-336`） | Hamlet 整本会被识别为 1"章" | `ChunkEngine` 补 `ACT I`/`SCENE II.` 正则 + 人物名行/舞台指示识别 |
 | 2 | 句切分面向散文（`\n\n` 分段 + `[.!?]` 边界，`src/chunker.py:99-179`） | 诗行单 `\n` 分隔、行末标点不规则 → 整段独白被并成一句或切碎 | **行模式（verse）**：一行 = 一个对齐单元，行对行翻译 |
-| 3 | `scripts/prepare_gutenberg.py` 不存在（scripts/ 仅 check_version.py） | Gutenberg 文本无法直接喂入 | 新建（含戏剧版式：页眉页脚、折行、ACT/SCENE→`##`、人物名行、舞台指示标记） |
-| 4 | 组装策略 body_join/first_lock 按句索引对齐 | 行模式下按行索引对齐（更自然） | assembler 加行模式路径（复用同一索引机制） |
-| 5 | 术语协议只有"术语→译法" | 戏剧需人物声音、著名台词策略 | style.json 协议（本仓库设计，Python 侧仅提供读写工具） |
+| 3 | `scripts/prepare_gutenberg.py` 不存在（scripts/ 仅 check_version.py） | Gutenberg 文本无法直接喂入 | `PrepareEngine` 新建（含戏剧版式：页眉页脚、折行、ACT/SCENE→`##`、人物名行、舞台指示标记） |
+| 4 | 组装策略 body_join/first_lock 按句索引对齐 | 行模式下按行索引对齐（更自然） | `AssembleEngine` 加行模式路径（复用同一索引机制） |
+| 5 | 术语协议只有"术语→译法" | 戏剧需人物声音、著名台词策略 | style.json 协议（PROTOCOL.md §3.3，本仓库实现） |
 
 设计影响：
 
@@ -249,14 +247,14 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 
 | 里程碑 | 内容 | 仓库 | 产出与验收 |
 |---|---|---|---|
-| **M0** | 设计定稿 + 开发规范：本文档 v2 + 决策 + 调研 + DEVELOPMENT.md（强制规范）+ PROTOCOL.md（协议契约） | 本仓库 | 六文档齐备；D10 依赖方式定案；D11–D13 拍板 |
+| **M0** | 设计定稿 + 开发规范：本文档 v2 + 决策 + 调研 + DEVELOPMENT.md（强制规范）+ PROTOCOL.md（协议契约）+ AGENTS.md | 本仓库 | 六文档齐备；D1–D15 定案（含全 TS 不建桥、生态对齐） |
 | **M1** | L1：SKILL.md + 文件协议模板 + **Hamlet Act 1 人工在 DSH 会话跑通**（零代码） | 本仓库 | SKILL.md；Act 1 五场草稿（人工按 skill 驱动）；glossary/style v1 实际成形；验证记录 |
-| **M2** | Itranslation 侧补齐：ACT/SCENE 解析、行模式、`prepare_gutenberg.py`（戏剧版式）、thin CLI `itranslation_api.py`（单次调用，`<op> --json`） | Itranslation | 单元测试 + thin CLI 文档；插件与 CLI 共用的确定性原语就绪 |
-| **M3** | L2：npm 包 + `cordis.patch.yml` + `ctx.subprocess` 桥 + 13 工具注册 + 包内 skill；装入本机 profile 实测 | 本仓库 | 插件包可装可用；工具单测（含桥的失败路径：python 缺失/版本不符） |
-| **M4** | **Hamlet 全书 E2E**：DSH 会话内 Mode A 翻译全书 → 审计闭环 → 组装 TXT/MD/EPUB | 两仓库 | 0 错误块；审计报告；跨会话续跑验证 |
-| **M5（可选）** | Mode A/B 对比（Itranslation 行模式就绪后）；Gatsby 散文路径回归（原验收书）；L3 Web UI；开源化/发布工程 | 两仓库 | 按需启动（对比报告复用 LLM-judge + BLEU/chrF + 人工抽检） |
+| **M2** | TS 确定性原语：`PrepareEngine`（戏剧版式）+ `ChunkEngine`（ACT/SCENE + 行模式）+ `AssembleEngine` + `AuditEngine` + `*Store`；移植 Itranslation 497 行测试为 golden | 本仓库 | 原语单测 + golden 一致性；Itranslation 仓库不动 |
+| **M3** | L2：npm 包（照 DSH cookbook 包不变式）+ `cordis.patch.yml` + 13 工具注册（defineTool 契约 + UI 卡片）+ 包内 skill；装入本机 profile 实测；过生态对齐清单 | 本仓库 | 插件包可装可用；工具单测；附录 B 清单全过 |
+| **M4** | **Hamlet 全书 E2E**：DSH 会话内 Mode A 翻译全书 → 审计闭环 → 组装 TXT/MD/EPUB | 本仓库 | 0 错误块；审计报告；跨会话续跑验证 |
+| **M5（可选）** | Mode A/B 对比（agent 用 bash 工具直跑 Itranslation CLI）；Gatsby 散文路径回归（原验收书）；L3 Web UI；开源化/发布工程 | 本仓库 | 按需启动（对比报告复用 LLM-judge + BLEU/chrF + 人工抽检） |
 
-节奏原则：M1 零代码先验证工作流与协议（最便宜的试错点）；M2 只做 Hamlet 逼出来的最小改动，不做过度设计的 headless 平台；M3 才动 DSH 插件机制；M4 一次性给出全书实证。任一里程碑不达预期可在 M1 后低成本掉头。
+节奏原则：M1 零代码先验证工作流与协议（最便宜的试错点）；M2 只做 Hamlet 逼出来的最小 TS 原语（golden 测试兜底行为一致性）；M3 才动 DSH 插件机制；M4 一次性给出全书实证。任一里程碑不达预期可在 M1 后低成本掉头。
 
 ## 9. 风险与对策（修订）
 
@@ -265,12 +263,11 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 | 会话上下文被 compaction/spill/pruner 逐出（v1 低估） | 文件为真相源；简报驱动；subagent 写文件+短报告；工具 render 只投影摘要 |
 | subagent 整章回传撑爆父上下文 | 同上：回传只许短报告（dsh-translate-docs 实证手法） |
 | 句/行数对齐脆弱（agent 自由输出） | 行模式机械可校验；assemble 失配闸门 + 定位重译；M1 人工跑通时验证契约可行性 |
-| 会话内翻译 token 成本高 | Mode A 精品定位；Mode B 走 CLI 定价；M4 量化差价 |
+| 会话内翻译 token 成本高 | Mode A 精品定位；M5 对比时量化差价 |
 | 会话式翻译不可逐位复现 | glossary/style/checkpoint 文件协议 + 审计；重译语义清晰（删 checkpoint 不丢决策） |
-| 上游 API 漂移 | 只依赖公开 cordis 契约：`ctx.tools`/`ctx.subprocess`/`ctx.skills`/patch 格式；RESEARCH 文档记录核实路径 |
-| Python 依赖漂移（Itranslation 演进） | pin commit/tag；thin CLI 带版本探针，缺失/不符即响亮报错 |
-| 子进程桥复杂度 | 单次短命调用起步（无长驻）；argv 不经 shell；graceMs + exec.signal；长驻留作优化（ndjson 帧，ACP 模板） |
-| pnpm ≥10 拦 git 依赖生命周期脚本 | 本方案无 postinstall/prepare 依赖，天然规避 |
+| TS 移植与 Itranslation 行为漂移 | golden 测试（移植 497 行同源测试，注明来源 commit）；协议语义 + golden 裁决分歧；DEVELOPMENT §6 |
+| 上游 API 漂移 | 只依赖公开 cordis 契约（`ctx.tools`/`ctx.skills`/`ctx.systemPrompt`/patch 格式）；每里程碑按 RESEARCH-DSH.md §9 清单核查 |
+| 生态规范漂移（cookbook 更新） | 上游 cookbook 为准绳（DEVELOPMENT §4 开头）；漂移时先更新本仓库规范再动代码 |
 | DSH profile 机制细节变动 | 分发模型与官方唯一路径一致（profile bundle），随上游文档跟踪 |
 
 ## 10. 验收标准（分档）
