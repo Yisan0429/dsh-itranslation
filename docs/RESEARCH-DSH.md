@@ -17,6 +17,7 @@
 - **allowlist**（`tools.md:11`）：`schemas()` 只漏 `name/description/parameters` 进模型请求——output/execute/timeoutMs/isConcurrencySafe/present* 永不泄漏。
 - 可选：`timeoutMs`（须配合可协作取消）、`finalizeContent`（最后一英里变换）、`presentCall/presentResult`（UI 呈现）、`isConcurrencySafe`（并行组资格）。
 - **设计要点（本插件用）**：`render` 是上下文预算阀门——canonical 值可携带完整数据（供程序/后续工具消费），模型只看到 render 投影的短摘要。
+- **`ctx.tools`（ToolRuntime）**：由 `dsh-tools` 提供（base bundle `- id: tools`，`packages/bundle/base/cordis.patch.yml:424-425`）；插件 `inject: ['tools']` 后 `ctx.tools.register(defineTool({...}))`（返回注销函数）。关键语义（`tools.md:480-597`）：`schemas(scope?)` 做 allowlist 投影；**同层同名或保留名 `run_code` → 抛错失败**，作用域注册遮蔽全局（`:499-504`）；注册触发 `tools/change` 事件。另有 `get/restrict(allow·deny)/guard/execute`。
 - 范本注意：`tool-cordis` **不在** `packages/bundle/*/cordis.patch.yml` 里，而在 agent preset `apps/cli/config/agent-presets/cordis/agent.cordis.yml:245-246` 挂载。
 - 工具包命名惯例 `@deepseek-ai/dsh-tool-*`，按域嵌套（`packages/shell/tool-bash`、`packages/fs/tool-fs`、`packages/subagent/tool-subagent` 等）。
 
@@ -75,6 +76,7 @@
 - **结论**：逐字译文/大块正文**必然被逐出会话上下文**——"全书状态活在会话里"不成立。译文全文必须落工作区文件；模型只见元数据/短报告（DESIGN.md §3.1）。
 - **subagent 返回语义**（`docs/subsystems/subagent.md:316-335`）：父代理收到的是**最后一次非空 assistant 消息全文**（非摘要，非 completed 时可能 partial）——fan-out 若整章回传会撑爆父上下文。正确姿势：subagent 写文件 + 短报告。范本 `.agents/skills/dsh-translate-docs/SKILL.md:38,53`：**编排者不自己翻译，spawn subagent 翻译；结果写文件**。
 - **subagent 两种 provider**（`subagent.md:406-409,463-468`）：`spawn` = 独立任务、不继承父对话；`fork` = 播种父日志"已完成的 turn 前缀"（不含在飞 turn），工具/服务/权限不继承（新扁平 scope）。子代理共享工作区、默认继承全局工具目录（read/write/edit/glob/grep/bash，可 toolFilter 过滤）、可直接写工作区文件；`report` 工具仅 continuable in-process 子代理有。
+- **两个模型可见 subagent 工具**（base `cordis.patch.yml:313-329`）：`tool-subagent`（provider spawn、`backgroundMode: continuable`，默认后台运行可续聊）与 `tool-subagent-fork`（provider fork、`backgroundMode: one-shot`）。fan-out 官方指引在工具 prompt section："后台并行起多个独立委托，依赖结果时才同步等"；一两个委托用普通 subagent，**大规模才用 workflow**（workflow 脚本无 fs/网络/Node API，只协调子代理，`tool-workflow/src/index.ts:150`）。
 - **文件工具上限**（`packages/fs/tool-fs`、`tool-fs-search`）：read 2000 行/2000 字符每行/50KB（≥10MB 走流式）；glob 100；grep 250（进程型带 timeoutMs）；write/edit 工具层无内容上限（fs-sandbox 后端约束写入范围，本会话 `workspace-write` 模式）。
 - dsh-translate-docs skill 要点提炼（本插件 SKILL.md 的直接范本）：
   1. skill 是"工作流地图"而非翻译记忆；术语表是**契约**——未列术语进待定清单（「待定术语」），**不许即兴造词**；
