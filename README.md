@@ -21,6 +21,8 @@ DSH 会话的人机协作 + subagents + 文件记忆，配上 Itranslation 的�
 | 文档 | 内容 |
 |---|---|
 | [docs/DECISIONS.md](docs/DECISIONS.md) | 决策日志（含未决问题与修订记录），新对话从这里读起 |
+| [docs/DEVELOPMENT.md](docs/DEVELOPMENT.md) | **开发规范（强制）**：docs-first、里程碑 gate、commit 规范、工具链（tsdown/oxlint/vitest/lefthook/pnpm）、插件红线 R1–R9、Python 侧规范、跨仓库 pin、质量闸门、会话交接规范 |
+| [docs/PROTOCOL.md](docs/PROTOCOL.md) | **协议契约（唯一权威）**：thin CLI 调用契约与错误码表、glossary/style/checkpoint/drafts 文件 schema、␟ 对齐契约、版本兼容策略 |
 | [docs/DESIGN.md](docs/DESIGN.md) | 设计 v2：重写原因、价值主张（Mode A/B、记忆模型）、架构（ctx.subprocess 桥、上下文三闸）、13 工具清单、文件协议、工作流、Hamlet 适配、M0–M5 路线图、风险与验收 |
 | [docs/RESEARCH-DSH.md](docs/RESEARCH-DSH.md) | DSH 机制调研 v2：插件/tool/skill/bundle、`ctx.subprocess` 全契约、外部依赖规范（用户点名调研）、上下文三闸与 subagent 回传语义（附 checkout 内文件路径+行号） |
 | [docs/ITRANSLATION-CORE.md](docs/ITRANSLATION-CORE.md) | Itranslation 侧现状（v1.5.1）、模块地图、M2 thin CLI 方案、Hamlet 缺口核实（ACT/SCENE、行模式、prepare_gutenberg） |

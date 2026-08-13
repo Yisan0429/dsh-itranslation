@@ -75,6 +75,12 @@
 - M1–M4 专注 Mode A（agent 会话内翻译，插件价值所在）；Mode A/B 对比矩阵后延至 Itranslation 行模式与 CLI 适配就绪之后。
 - M4 验收去掉"与 CLI 对比"项，改为"Mode A 全书 E2E + 审计闭环"；对比实验进 M5 可选。
 
+### D13（2026-08-14）采纳严格开发规范并落成文档（用户要求）
+
+- 新增两份强制性文档：`docs/DEVELOPMENT.md`（开发规范总纲：docs-first、里程碑 gate、Conventional Commits、工具链对齐 DSH 官方——tsdown/oxlint/vitest/lefthook/pnpm、插件红线 R1–R9、Python 侧规范、跨仓库 pin、质量闸门、会话交接规范）与 `docs/PROTOCOL.md`（唯一权威协议契约：thin CLI 调用契约与错误码表、glossary/style/checkpoint/drafts 文件 schema、对齐契约、版本兼容策略）。
+- 工具链对齐已核实的 DSH 官方惯例（`packages/fs/tool-fs/package.json` 结构与根 scripts：tsdown 构建、oxlint、vitest、lefthook）。
+- 影响：M1 起所有会话与提交必须遵守；违反红线 R1–R9 的提交拒绝重做。
+
 ## 修订记录（2026-08-14，评估轮）
 
 - 用户对旧路线图（P1–P5）不满意 → DESIGN.md §8 重写为里程碑制（M0–M5，Hamlet 主线）。

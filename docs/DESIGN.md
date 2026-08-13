@@ -249,7 +249,7 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 
 | 里程碑 | 内容 | 仓库 | 产出与验收 |
 |---|---|---|---|
-| **M0** | 设计定稿（本文档 v2 + 决策 + 调研） | 本仓库 | 四文档齐备；D10 依赖方式定案；D11/D12 拍板 |
+| **M0** | 设计定稿 + 开发规范：本文档 v2 + 决策 + 调研 + DEVELOPMENT.md（强制规范）+ PROTOCOL.md（协议契约） | 本仓库 | 六文档齐备；D10 依赖方式定案；D11–D13 拍板 |
 | **M1** | L1：SKILL.md + 文件协议模板 + **Hamlet Act 1 人工在 DSH 会话跑通**（零代码） | 本仓库 | SKILL.md；Act 1 五场草稿（人工按 skill 驱动）；glossary/style v1 实际成形；验证记录 |
 | **M2** | Itranslation 侧补齐：ACT/SCENE 解析、行模式、`prepare_gutenberg.py`（戏剧版式）、thin CLI `itranslation_api.py`（单次调用，`<op> --json`） | Itranslation | 单元测试 + thin CLI 文档；插件与 CLI 共用的确定性原语就绪 |
 | **M3** | L2：npm 包 + `cordis.patch.yml` + `ctx.subprocess` 桥 + 13 工具注册 + 包内 skill；装入本机 profile 实测 | 本仓库 | 插件包可装可用；工具单测（含桥的失败路径：python 缺失/版本不符） |
