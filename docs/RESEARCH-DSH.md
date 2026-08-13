@@ -34,6 +34,7 @@
 | 500 | user-agents | `<agentsHome>/skills` |
 
 - projectRoot = 最近含 `.git` 的祖先目录（无则 cwd）。`skill-filesystem` 需 `inject: ['skills']`，可设 `includeDefaultRoots:false` + `customSkillDirs` 做隔离 provider——**bundle 贡献 skill 的路径**：插件自行注册 provider 指向包内目录（bundle 内指向随包文件目前无声明式路径原语，见 §6）。
+- **进模型上下文的方式：不是全文注入**。会话目录只注入排序后的 name + XML 转义 description；正文经模型可见的 `skill({name})` 工具**按需加载**（`docs/subsystems/skills.md:229-235,94`）。frontmatter 用 kebab-case（`disable-model-invocation`/`user-invocable`/`whenToUse`/`metadata`），驼峰别名被拒（`skill-filesystem/src/index.ts:1004-1008`）；正文无大小上限（仅 catalog 描述上限 500 字符）。
 - 现成范本 `.agents/skills/dsh-translate-docs/SKILL.md`（详见 §7 的要点提炼）。
 
 ## 4. 外部插件分发：profile bundle（唯一官方路径）
@@ -68,11 +69,13 @@
 
 ## 7. 上下文预算与 subagent（对翻译设计最关键的事实）
 
-- **spill**：工具结果 >50KB 落盘、模型只见文件引用。
-- **tool-result-pruner**：>8KB 的工具结果只留头尾。
-- **compaction**（`docs/subsystems/compaction.md` + `packages/compaction/`）：旧区间 LLM 摘要化，只保留 ~16% 尾部原文。
+- **spill**（`spill-policy`，base `packages/bundle/base/cordis.patch.yml:349-352`，`maxInlineBytes: 50000`）：>50KB 的纯文本工具结果存 session 级 spill 文件，模型只看 head/tail 预览 + 定位符。
+- **tool-result-pruner**（base `cordis.patch.yml:360-365`，`thresholdChars: 8192 / headChars: 4096 / tailChars: 1024`）：超预算工具结果中段裁掉、只留头尾。
+- **compaction**（`docs/subsystems/compaction.md` + `packages/compaction/compaction-basic/src/config.ts:20-96`）：默认 `thresholdRatio=0.8`（>80% 触发）、`retainRatio=0.16`（逐字保留最近 16% 尾巴）、`maxTokens=8192`（摘要上限）；旧区间被一个 LLM 摘要节点替换，**从不拆开 assistant 工具调用/结果配对**（`region.ts:98-134`）。
 - **结论**：逐字译文/大块正文**必然被逐出会话上下文**——"全书状态活在会话里"不成立。译文全文必须落工作区文件；模型只见元数据/短报告（DESIGN.md §3.1）。
-- **subagent 返回语义**（`docs/subsystems/subagent.md:316-335`）：父代理收到的是**最后一次非空 assistant 消息全文**（非摘要）——fan-out 若整章回传会撑爆父上下文。正确姿势：subagent 写文件 + 短报告。范本 `.agents/skills/dsh-translate-docs/SKILL.md:38,53`：**编排者不自己翻译，spawn subagent 翻译；结果写文件**。
+- **subagent 返回语义**（`docs/subsystems/subagent.md:316-335`）：父代理收到的是**最后一次非空 assistant 消息全文**（非摘要，非 completed 时可能 partial）——fan-out 若整章回传会撑爆父上下文。正确姿势：subagent 写文件 + 短报告。范本 `.agents/skills/dsh-translate-docs/SKILL.md:38,53`：**编排者不自己翻译，spawn subagent 翻译；结果写文件**。
+- **subagent 两种 provider**（`subagent.md:406-409,463-468`）：`spawn` = 独立任务、不继承父对话；`fork` = 播种父日志"已完成的 turn 前缀"（不含在飞 turn），工具/服务/权限不继承（新扁平 scope）。子代理共享工作区、默认继承全局工具目录（read/write/edit/glob/grep/bash，可 toolFilter 过滤）、可直接写工作区文件；`report` 工具仅 continuable in-process 子代理有。
+- **文件工具上限**（`packages/fs/tool-fs`、`tool-fs-search`）：read 2000 行/2000 字符每行/50KB（≥10MB 走流式）；glob 100；grep 250（进程型带 timeoutMs）；write/edit 工具层无内容上限（fs-sandbox 后端约束写入范围，本会话 `workspace-write` 模式）。
 - dsh-translate-docs skill 要点提炼（本插件 SKILL.md 的直接范本）：
   1. skill 是"工作流地图"而非翻译记忆；术语表是**契约**——未列术语进待定清单（「待定术语」），**不许即兴造词**；
   2. **简报驱动委派**：编排者为 subagent 备好完整工作集（简报），subagent 不重读全库、不重推 diff；
@@ -98,6 +101,9 @@ deepseek-harness/
 ├── docs/subsystems/skills.md           # skill 发现/加载
 ├── docs/subsystems/compaction.md       # 压缩
 ├── docs/subsystems/subagent.md:316-335 # subagent 返回语义
+├── packages/compaction/compaction-basic/src/config.ts  # 压缩默认参数（0.8/0.16/8192）
+├── packages/spill/spill-policy/src/index.ts             # spill 阈值（50000 字节）
+├── packages/fs/tool-fs  packages/fs/tool-fs-search      # 文件工具（上限/沙箱）
 ├── .agents/skills/dsh-translate-docs/SKILL.md   # 翻译工作流 skill 范本（简报驱动）
 ├── .agents/notes/implemented/architecture/
 │   ├── 2026-08-05-profile-plugin-bundles.md

@@ -46,7 +46,7 @@
 - **Mode A（agent-as-translator，精品/交互）**：翻译由 agent/subagents 在 DSH 会话内完成。适合：文学精品、逐段推敲、用户随手指点（"哈姆雷特的语气再阴郁一点"）。代价：token 贵、句/行数纪律靠提示词与组装校验。
 - **Mode B（agent-as-operator，批量/可复现）**：agent 作为操作者，通过工具调 Itranslation 的 Python 管线（现有 CLI 或 thin API），**LLM 调用发生在 Python 侧**，沿用 CLI 的质量链（句数重试、反思/修订、RAT、batch 定价、前缀缓存）。适合：跑量、对照 CLI 基准。这与 Itranslation Q1 的自我定位一致（agent = 编排者）。
 
-同一套工具与文件协议支撑两模式；SKILL.md 各给一条工作流路径。M1–M4 以 Mode A 为主线（插件价值所在），Mode B 作为 M4 对比矩阵的一臂（待 Itranslation 行模式与 thin API 就绪后启用）。
+同一套工具与文件协议支撑两模式；SKILL.md 各给一条工作流路径。**M1–M4 只做 Mode A**（决策 D12，插件价值所在）；Mode A/B 对比矩阵后延至 Itranslation 行模式与 CLI 适配就绪后（M5 可选）。
 
 ## 2. 三层形态（投入递增）
 
@@ -86,9 +86,9 @@ DSH 会话（agent，长上下文但会被压缩 → 只当缓存）
 
 DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 
-- **spill**：工具结果 >50KB 落盘、模型只见文件引用；
-- **tool-result-pruner**：>8KB 的工具结果只留头尾；
-- **compaction**：旧区间 LLM 摘要化，只保留 ~16% 尾部原文。
+- **spill**：工具结果 >50KB（`maxInlineBytes: 50000`）落盘、模型只见文件引用；
+- **tool-result-pruner**：>8KB（threshold 8192）的工具结果只留头 4096 + 尾 1024 字符；
+- **compaction**：旧区间 LLM 摘要化，只保留 ~16% 尾部原文（retainRatio 0.16）。
 
 设计原则：**大对象只落盘，模型只见元数据与短报告**。chunk/译文/brief 全文一律写工作区文件；工具 canonical 结果可以携带完整数据（供程序消费），但 `render` 投影只给模型短摘要（路径、计数、状态）；subagent 结果必须"写文件 + 短报告"。
 
@@ -177,7 +177,7 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
     "Polonius": {"voice": "絮叨、谚语堆砌"}
   },
   "policies": {
-    "famous_lines": "adopt_classic",        // adopt_classic | retranslate | offer_both（待用户拍板）
+    "famous_lines": "retranslate",           // 决策 D11：全书自译，经典译本仅审校参考
     "stage_directions": "translate",        // 舞台指示译文用〔〕标注
     "verse": "line_for_line"
   },
@@ -242,19 +242,19 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 
 - 对齐契约在行模式下变成**行对行**：草稿行数 = 原文行数（含空行/舞台指示行的对应约定），比散文句数对齐更严格也更机械可校验——Hamlet 反而是更友好的验收对象。
 - 戏剧三类文本翻译策略不同：台词（素体诗，行对齐）、人物名行（格式标记，不译或统一译名）、舞台指示（`policies.stage_directions` 控制，译文用〔〕包裹）。
-- **著名台词策略是产品决策**（待用户拍板，默认建议 `adopt_classic`：采用通行经典译本并注明出处，其余自译）。
+- **著名台词策略已拍板（决策 D11）：完全重译**——全书保持单一译者风格，经典译本（朱生豪/梁实秋等）仅作审校参考，不采用、不做对照。
 - 双语对齐资产：行对行 + 场景结构 = 天然逐行双语语料，直接对接 Itranslation Q1 的 TM 语料目标。
 
 ## 8. 路线图（里程碑制，Hamlet 主线）
 
 | 里程碑 | 内容 | 仓库 | 产出与验收 |
 |---|---|---|---|
-| **M0** | 设计定稿（本文档 v2 + 决策 + 调研） | 本仓库 | 四文档齐备；D10 依赖方式定案；著名台词策略拍板 |
+| **M0** | 设计定稿（本文档 v2 + 决策 + 调研） | 本仓库 | 四文档齐备；D10 依赖方式定案；D11/D12 拍板 |
 | **M1** | L1：SKILL.md + 文件协议模板 + **Hamlet Act 1 人工在 DSH 会话跑通**（零代码） | 本仓库 | SKILL.md；Act 1 五场草稿（人工按 skill 驱动）；glossary/style v1 实际成形；验证记录 |
 | **M2** | Itranslation 侧补齐：ACT/SCENE 解析、行模式、`prepare_gutenberg.py`（戏剧版式）、thin CLI `itranslation_api.py`（单次调用，`<op> --json`） | Itranslation | 单元测试 + thin CLI 文档；插件与 CLI 共用的确定性原语就绪 |
 | **M3** | L2：npm 包 + `cordis.patch.yml` + `ctx.subprocess` 桥 + 13 工具注册 + 包内 skill；装入本机 profile 实测 | 本仓库 | 插件包可装可用；工具单测（含桥的失败路径：python 缺失/版本不符） |
-| **M4** | **Hamlet 全书 E2E**：DSH 会话内 Mode A 翻译全书 → 审计闭环 → 组装 TXT/MD/EPUB；与 CLI（Mode B/行模式就绪后）对比质量/时间/token | 两仓库 | 0 错误块；审计报告；对比报告入 `reports/benchmark/`（复用 LLM-judge + BLEU/chrF + 人工抽检） |
-| **M5（可选）** | Gatsby 散文路径回归（原验收书）；L3 Web UI；开源化/发布工程 | 两仓库 | 按需启动 |
+| **M4** | **Hamlet 全书 E2E**：DSH 会话内 Mode A 翻译全书 → 审计闭环 → 组装 TXT/MD/EPUB | 两仓库 | 0 错误块；审计报告；跨会话续跑验证 |
+| **M5（可选）** | Mode A/B 对比（Itranslation 行模式就绪后）；Gatsby 散文路径回归（原验收书）；L3 Web UI；开源化/发布工程 | 两仓库 | 按需启动（对比报告复用 LLM-judge + BLEU/chrF + 人工抽检） |
 
 节奏原则：M1 零代码先验证工作流与协议（最便宜的试错点）；M2 只做 Hamlet 逼出来的最小改动，不做过度设计的 headless 平台；M3 才动 DSH 插件机制；M4 一次性给出全书实证。任一里程碑不达预期可在 M1 后低成本掉头。
 
@@ -277,6 +277,8 @@ DSH 真实机制（RESEARCH-DSH.md §5 核实）：
 
 **M1**：Hamlet Act 1 在 DSH 会话中按 SKILL.md 走完（0 代码）：五场草稿行对齐、glossary v1、style v1、验证记录含"契约是否被模型遵守"的实测结论。
 
-**M4**：Hamlet 全书在 DSH 会话端到端翻译：0 错误块、TXT/MD/EPUB 产出、审计闭环全程可用、跨会话续跑不丢进度；对比报告（LLM-judge + BLEU/chrF + 人工抽检 + 时间/token）存档。
+**M4**：Hamlet 全书在 DSH 会话端到端翻译（Mode A）：0 错误块、TXT/MD/EPUB 产出、审计闭环全程可用、跨会话续跑不丢进度。
+
+**M5（可选）**：Mode A/B 对比报告（LLM-judge + BLEU/chrF + 人工抽检 + 时间/token）存档。
 
 **通用**：任何时刻重开会话，凭 `status` + 文件协议可无损续跑；术语/风格决策经审计验证为契约一致性来源。

@@ -65,15 +65,24 @@
 - 被否方案及理由：打包单文件二进制（ripgrep 路线，个人项目过度工程，留作开源时升级路径）；postinstall 拉取（pnpm ≥10 拦 git 依赖 prepare，`apps/cli/src/plugin.ts:149-155`）；README-only host 依赖（官方评为下策，`2026-08-01-packaged-ripgrep-search.md`）。
 - 证据全文见 RESEARCH-DSH.md §6。
 
+### D11（2026-08-14）著名台词策略：完全重译（用户拍板）
+
+- Hamlet 著名台词（如 "To be, or not to be"）**全书自译**，保持单一译者风格；经典译本（朱生豪/梁实秋等）只在审校时参考，不直接采用、不做附录对照。
+- 落入 style.json `policies.famous_lines: "retranslate"`。
+
+### D12（2026-08-14）M4 只做 Mode A，Mode B 对比后延（用户拍板）
+
+- M1–M4 专注 Mode A（agent 会话内翻译，插件价值所在）；Mode A/B 对比矩阵后延至 Itranslation 行模式与 CLI 适配就绪之后。
+- M4 验收去掉"与 CLI 对比"项，改为"Mode A 全书 E2E + 审计闭环"；对比实验进 M5 可选。
+
 ## 修订记录（2026-08-14，评估轮）
 
 - 用户对旧路线图（P1–P5）不满意 → DESIGN.md §8 重写为里程碑制（M0–M5，Hamlet 主线）。
 - 用户要求 Python 依赖方式按 DSH 规范调研 → D10 定案（方案 A：`ctx.subprocess` + 路径配置 + 失败即报错）+ RESEARCH-DSH.md §6 存证。
 - D5 拆分 Mode A/B（agent 定位张力：本仓库原设计 = agent 翻译；Itranslation Q1 = agent 编排，两者应收进同一设计）。
 - D1 的"会话长上下文"卖点降级为"工作缓存"，文件协议升格为真相源。
+- D11/D12 拍板（著名台词完全重译；M4 只做 Mode A）。
 
 ## 未决问题（新对话可继续）
 
-1. **著名台词策略**（Hamlet "To be, or not to be" 等）：沿用经典译本并注明出处 / 完全重译 / 双语并存。产品决策，默认建议"沿用经典译本并注明，其余自译"，待用户拍板。
-2. **Mode A 与 Mode B 的优先级**：M1–M4 以 Mode A 为主线（插件价值所在）；Mode B 是否进入 M4 对比矩阵（需 Itranslation 行模式与 CLI 行模式就绪）待定。
-3. **skill 分发形态**：L1 用工作区 `.dsh/skills`（零接线）；L2 包内 skill 由插件自行注册 provider 还是文档指引手动复制，M3 时定。
+1. **skill 分发形态**：L1 用工作区 `.dsh/skills`（零接线）；L2 包内 skill 由插件自行注册 provider 还是文档指引手动复制，M3 时定。
