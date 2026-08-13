@@ -55,21 +55,25 @@
   4. 新产物概念：人物声音表（style 协议）、著名台词策略（沿用经典译本 vs 重译）、逐行双语对齐语料（Itranslation Q1 的 TM 目标，插件模式天然产出）。
 - Gatsby 降级为 M5 可选回归（散文路径验证）。
 
-### D10（2026-08-14）Python 桥走 DSH `ctx.subprocess` seam（待调研代理结论并入后定稿）
+### D10（2026-08-14）Python 依赖方式定案：`ctx.subprocess` 直调 + 路径配置 + 缺失即失败（调研代理核实后定稿）
 
-- DSH 有一等公民子进程服务 `ctx.subprocess`（`@deepseek-ai/dsh-subprocess` + `dsh-subprocess-local`）：`spawn(spec)` 全显式（argv/cwd/stdio/graceMs/env/abort）、argv 不经 shell、env 自动 scrub（`*KEY*/*TOKEN*` 与 `DSH_*`）+ 显式合并、piped stdio 供协议帧（ACP 用 ndjson 即此模式）、树级终止。**禁用裸 `child_process`**。
-- Python 依赖方式（Itranslation 仓库如何被插件依赖）在 DSH 规范核实后定（候选：路径配置 + pin commit 约定 / git submodule / Itranslation 补打包）。调研代理结论并入后更新本条。
+- **DSH 没有一等公民方式声明插件的外部运行时依赖**（`dsh` 段仅 `bundle.patch`/`profile.bundles` 两键，`packages/boot/app-boot/src/profile.ts:41-62`）。三条既有惯例中选定最贴 seam 的**方案 A**：
+  1. 插件 `inject: ['subprocess']`，用 `ctx.subprocess.resolveExecutable(pythonPath)` 定位解释器（绝对路径 X_OK 校验 / 裸名走 scrub 后 PATH；PATH/HOME/locale 保留，key/token 与 `DSH_*` 剔除）；缺失即响亮报错。
+  2. `ctx.subprocess.spawn({argv:[python, <itranslationDir>/src/itranslation_api.py, <op>, '--json', ...], cwd, stdio, graceMs, signal})`：argv 不经 shell、树级终止、exec.signal 接入工具取消。**禁用裸 `child_process`**。
+  3. 路径配置走 cordis.patch.yml 行 `config: { pythonPath, itranslationDir }`（个人自用改 YAML 即可；开源时可升级 settings namespace）。
+  4. 版本 pin：README 约定 pin Itranslation commit/tag + `--version` 启动探针。
+- 被否方案及理由：打包单文件二进制（ripgrep 路线，个人项目过度工程，留作开源时升级路径）；postinstall 拉取（pnpm ≥10 拦 git 依赖 prepare，`apps/cli/src/plugin.ts:149-155`）；README-only host 依赖（官方评为下策，`2026-08-01-packaged-ripgrep-search.md`）。
+- 证据全文见 RESEARCH-DSH.md §6。
 
 ## 修订记录（2026-08-14，评估轮）
 
 - 用户对旧路线图（P1–P5）不满意 → DESIGN.md §8 重写为里程碑制（M0–M5，Hamlet 主线）。
-- 用户要求 Python 依赖方式按 DSH 规范调研 → D10 + RESEARCH-DSH.md 补"外部依赖规范"章。
+- 用户要求 Python 依赖方式按 DSH 规范调研 → D10 定案（方案 A：`ctx.subprocess` + 路径配置 + 失败即报错）+ RESEARCH-DSH.md §6 存证。
 - D5 拆分 Mode A/B（agent 定位张力：本仓库原设计 = agent 翻译；Itranslation Q1 = agent 编排，两者应收进同一设计）。
 - D1 的"会话长上下文"卖点降级为"工作缓存"，文件协议升格为真相源。
 
 ## 未决问题（新对话可继续）
 
-1. **Python 依赖方式定稿**（D10 后段）：路径配置 + pin commit / submodule / pip 打包，三选一后写入。
-2. **著名台词策略**（Hamlet "To be, or not to be" 等）：沿用经典译本并注明出处 / 完全重译 / 双语并存。产品决策，默认建议"沿用经典译本并注明，其余自译"，待用户拍板。
-3. **Mode A 与 Mode B 的优先级**：M1–M4 以 Mode A 为主线（插件价值所在）；Mode B 是否进入 M4 对比矩阵（需 Itranslation 先行模式与 CLI 行模式就绪）待定。
-4. **skill 分发形态**：L1 用工作区 `.dsh/skills`（零接线）；L2 包内 skill 由插件自行注册 provider 还是文档指引手动复制，M3 时定。
+1. **著名台词策略**（Hamlet "To be, or not to be" 等）：沿用经典译本并注明出处 / 完全重译 / 双语并存。产品决策，默认建议"沿用经典译本并注明，其余自译"，待用户拍板。
+2. **Mode A 与 Mode B 的优先级**：M1–M4 以 Mode A 为主线（插件价值所在）；Mode B 是否进入 M4 对比矩阵（需 Itranslation 行模式与 CLI 行模式就绪）待定。
+3. **skill 分发形态**：L1 用工作区 `.dsh/skills`（零接线）；L2 包内 skill 由插件自行注册 provider 还是文档指引手动复制，M3 时定。
