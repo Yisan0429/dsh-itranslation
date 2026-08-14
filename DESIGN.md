@@ -3,7 +3,7 @@
 > 状态：设计文档，暂不实现。
 > 本文档为 Itranslation 迁移到 DeepSeek Harness（DSH）插件生态的唯一设计依据，2026-08-14 起从零确立。
 > 旧版文档（含历史 DESIGN / DECISIONS / RESEARCH 等）全部作废，不作为任何依据。
-> 所有决策均可追溯到 `DECISIONS.md`。
+> 所有决策均可追溯到 `DEVELOPMENT.md` 的「决策日志」。
 
 ---
 
