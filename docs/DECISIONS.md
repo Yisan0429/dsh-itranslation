@@ -1,112 +1,67 @@
 # 决策日志
 
-> 新对话接手时先读本文件；每条决策含背景与理由，未决问题在文末。
-> 2026-08-14 修订：用户反馈"设计有不足，评估后可覆盖"，路线图与部分结论已重估（见文末修订记录）。
+> 从零记录。旧版 DECISIONS 已作废删除，不计入。
+> 每条决策标注出处（用户原话/选项答案），后续决策按 D 序号追加。
 
-## 已确认决策
+## 2026-08-14 · 理念与流程确立
 
-### D1（2026-08-14）把 Itranslation 写成 DSH 插件
+### D1 核心理念
+两条：**质量与可复现优先**；**规模与成本经济**。
+出处：理念候选多选中，用户仅勾选"质量与可复现优先"与"规模与成本经济"；其余候选（翻译记忆资产、出版级成品、agent 协作分工、开源共享）未选。用户另指示：不以 SOLUTION.md 为准（"这是之前ai生成的，我们要推倒重来"）。
 
-- **动机**：DSH 会话具备长上下文、compaction、subagents、工作区文件记忆与 Web GUI 人机协作，可补上 Itranslation 独立 CLI"逐块无状态调用 + 注入式上下文"的短板。
-- **结论**：插件形态，而非替换独立 CLI。双模式互补：CLI = 批量、便宜、可复现的规模化生产；DSH 插件模式 = 交互式、全局一致的精品翻译 + 人机协作。
-- **修订（同日）**：原"长上下文 → 全书状态活在会话里"的表述夸大。compaction 会压缩会话内容，**会话上下文只能当工作缓存，文件协议才是唯一真相源**。动机改为：插件模式的价值 = 人机协作体验 + agent 的全局判断 + 与 CLI 产物的确定性互操作。详见 DESIGN.md §1。
+### D2 主场景
+用户把书交给 agent，agent 通过插件在约束下决策并翻译，全程在 DSH 对话框内完成。
+出处：用户原话"用户将书籍发送给agent，由agent通过该插件在约束下进行决策和翻译"。
 
-### D2（2026-08-14）设计阶段，暂不实现 —— 保持，路线图重估
+### D3 交付物
+只出设计文档，暂不写代码。
+出处：交付形态提问，用户选择"只要设计文档，暂不写代码"。
 
-- 用户原话："先只写设计方案，暂不实现"；修订轮中又明确"还没设计好，这些路线我还不满意"。
-- 影响：本仓库当前只含设计文档；**新路线图以里程碑（M0–M5）取代旧 P1–P5，见 DESIGN.md §8**；实现按里程碑启动。
+### D4 八步翻译流程
+0 确认译文要求 → 1 提取并预读 → 2 统一译文风格+确认关键术语（自动/人工协同） → 3 按章节分块 → 4 多个子代理逐句翻译 → 5 章节对齐组装 → 6 主模型审查（需有审查标准） → 7 反思修订（重复 3–6，可选） → 8 规范译文格式出成品。
+出处：用户原话给出完整流程。
 
-### D3（2026-08-14）插件代码放在用户目录下的独立新仓库（= 本仓库）
+### D5 第 0 步交互方式
+agent 主动发问题卡（体裁与语气、输出格式、术语模式、反思开关、各过程模型），用户答完才开始。
+出处：用户选择"agent 主动问，你答完再开始"。
 
-- 备选被否：Itranslation 仓库子目录；DSH checkout `packages/extensions/`（官方仓库，不适合放个人插件）。
-- 影响：本仓库经 git spec 装入 DSH profile（DSH 官方唯一外部插件分发路径 = profile bundle）。
+### D6 停等环节（三处）
+①第 0 步译文要求确认；②第 2 步人工协同术语确认；③第 6 步全书审查结果给用户过目。
+出处：用户选择"三处：再加'审查结果给你过目'"。
 
-### D4（2026-08-14）文档与 Itranslation 仓库分离
+### D7 子代理分工与注入
+一章一个子代理；统一后的风格说明与术语表在派发时随任务注入；"逐句翻译"指逐句对齐的精度要求。
+出处：用户选择"一个子代理负责一章"与"派发时随任务注入"。
 
-- 用户原话："文档应该分开"。Itranslation `SOLUTION.md` Q4 只留指针。
+### D8 审查时机
+全书译完统一审一遍，不逐章审。
+出处：用户选择"全书译完统一审"。
 
-### D5（2026-08-14）插件进程不直接调 LLM —— 修订为"两种翻译模式"拆分
+### D9 反思修订范围
+针对审查揪出的具体问题定向修订（只重译问题句/段），不按章重跑；开关每本书在第 0 步询问。
+出处：用户原话"不是针对某一个章节，而是针对具体的问题"；开关默认值提问选择"每本书在第 0 步问"。
 
-- 原文把"JS 插件不调 LLM"混同为"翻译必须在会话内由 agent 做"，导致设计只有一种模式。修订：
-  - **约束不变**：插件包（Node 侧）绝不直接调 LLM。
-  - **Mode A（agent-as-translator，精品/交互）**：翻译由 agent/subagents 在 DSH 会话内完成（原设计路径）。
-  - **Mode B（agent-as-operator，批量/可复现）**：agent 作为操作者/编排者，**用 DSH 现有 bash 工具直接运行 Itranslation CLI**（`uv run python translate_book.py ...`）完成翻译——LLM 调用发生在 Python 侧，沿用 CLI 的质量链（句数重试、反思/修订、RAT、batch 定价、前缀缓存）。这正是 Itranslation 自身 SOLUTION.md Q1 的定位："agent 作为流水线的操作者/编排者"。**不建插件↔Python 桥**（D14）。
-- 两模式共用同一套确定性文件协议（PROTOCOL.md），差异只在"谁调 LLM"；SKILL.md 各给一条工作流。详见 DESIGN.md §1.3。
-- **2026-08-14 二次修订（D14 连带）**：原"两模式共用同一 Python 核心"改为——**共享边界是协议，不是代码**。插件模式的确定性原语（分块/组装/审计/checkpoint/glossary）用 **TypeScript 原生实现**（本仓库，与 DSH 生态同构）；Python 核心仅在 Itranslation CLI 自身议题（Q1–Q3）与 Mode B（bash 直跑）中涉及。
+### D10 输出格式
+在第 0 步由用户选择。
+出处：用户原话"第一步让用户选"。
 
-### D6（2026-08-14）L2 工具粒度：每原语一个工具（用户选定）
+### D11 横切保障
+只要断点续跑（每章译完即落盘、可续跑），**不要成本闸**。
+出处：用户选择"只要断点续跑"。
 
-- prepare/chunk/brief/glossary_get/glossary_set/glossary_merge/style_get/style_set/checkpoint_load/checkpoint_save/assemble/audit/status 各自独立注册。
-- 代价：模型可见工具列表约 13 个；收益：schema 清晰、调用正确率高、错误定位直接。工具描述控制在两行内以压低上下文成本。
+### D12 执行引擎
+**DSH 原生实现**：确定性文本层（提取/分块/对齐/组装/格式）以 agent preset 的 TS 包重写；LLM 层由 DSH 子代理与主模型完成；无 Python 依赖。
+出处：用户选择"DSH 原生实现"。
 
-### D7（2026-08-14）目标用户：仅个人自用（用户选定）
+### D13 模型选择
+每个过程（预读/翻译/审查/反思）用的模型由用户自己选择，第 0 步逐项指定，不采用固定三档。
+出处：用户原话"让用户选择每一个过程用的模型"。
 
-- 经 `dsh plugin add <git-spec>` 装入本机 profile；文档、测试、跨平台兼容按个人项目标准；开源化/发布工程推迟到 M5（可选）。
+### D14 术语自动模式
+自动模式 = 预读生成的术语表直接采用，模型没把握的术语才问用户；默认自动，人工协同为备选。
+出处：用户选择"自动=直接采用，有分歧才问"。
 
-### D8（2026-08-14）命名保留 `dsh-itranslation`（用户选定）
+## 备注
 
-- 仓库名不动；npm 包名 `dsh-itranslation`（如需 scope 后续加，不影响设计）。
-
-### D9（2026-08-14）首个端到端验证书 = Hamlet（《哈姆雷特》，用户选定）
-
-- **诗体戏剧**，与旧验收书（Gatsby，散文小说）性质完全不同，对设计有实质影响（已核实 Itranslation 现状）：
-  1. `parse_structure` 只认 `CHAPTER/BOOK/PART/Section` 与 Markdown 标题，**不认 `ACT/SCENE`**（`src/chunker.py:321-336`）→ 结构解析需补。
-  2. 句切分面向散文段落（`\n\n` 分段 + `[.!?]` 边界，`src/chunker.py:99-179`）；诗行是单 `\n` 分隔、行末标点不规则 → **需"行模式"**：一行 = 一个对齐单元，行对行翻译（对诗反而比句切分更自然）。
-  3. `scripts/prepare_gutenberg.py` 尚不存在（scripts/ 仅 check_version.py）→ 需实现，且须处理戏剧版式：页眉页脚、折行、ACT/SCENE 转 `##`、人物名行（如 `HAMLET.` 独占一行）、舞台指示。
-  4. 新产物概念：人物声音表（style 协议）、著名台词策略（沿用经典译本 vs 重译）、逐行双语对齐语料（Itranslation Q1 的 TM 目标，插件模式天然产出）。
-- Gatsby 降级为 M5 可选回归（散文路径验证）。
-
-### D10（2026-08-14）Python 依赖方式定案：`ctx.subprocess` 直调 + 路径配置 + 缺失即失败 —— **已被 D14 推翻（桥取消）**
-
-- 调研结论本身仍有效（DSH 没有一等公民方式声明插件的外部运行时依赖；三条惯例与证据见 RESEARCH-DSH.md §6），作为 **Mode B 类型化编排议题重启时的预备知识**保留。
-- 原方案 A（`resolveExecutable` + `spawn` argv 直调 + 路径配置 + 失败即报错）撤销：当前设计无任何外部进程依赖。
-- 被否方案及理由：打包单文件二进制（ripgrep 路线，个人项目过度工程，留作开源时升级路径）；postinstall 拉取（pnpm ≥10 拦 git 依赖 prepare，`apps/cli/src/plugin.ts:149-155`）；README-only host 依赖（官方评为下策，`2026-08-01-packaged-ripgrep-search.md`）。
-- 证据全文见 RESEARCH-DSH.md §6。
-
-### D11（2026-08-14）著名台词策略：完全重译（用户拍板）
-
-- Hamlet 著名台词（如 "To be, or not to be"）**全书自译**，保持单一译者风格；经典译本（朱生豪/梁实秋等）只在审校时参考，不直接采用、不做附录对照。
-- 落入 style.json `policies.famous_lines: "retranslate"`。
-
-### D12（2026-08-14）M4 只做 Mode A，Mode B 对比后延（用户拍板）
-
-- M1–M4 专注 Mode A（agent 会话内翻译，插件价值所在）；Mode A/B 对比矩阵后延至 Itranslation 行模式与 CLI 适配就绪之后。
-- M4 验收去掉"与 CLI 对比"项，改为"Mode A 全书 E2E + 审计闭环"；对比实验进 M5 可选。
-
-### D13（2026-08-14）采纳严格开发规范并落成文档（用户要求）
-
-- 新增两份强制性文档：`docs/DEVELOPMENT.md`（开发规范总纲：docs-first、里程碑 gate、Conventional Commits、工具链对齐 DSH 官方——tsdown/oxlint/vitest/lefthook/pnpm、插件红线 R1–R9、Python 侧规范、跨仓库 pin、质量闸门、会话交接规范）与 `docs/PROTOCOL.md`（唯一权威协议契约：thin CLI 调用契约与错误码表、glossary/style/checkpoint/drafts 文件 schema、对齐契约、版本兼容策略）。
-- 工具链对齐已核实的 DSH 官方惯例（`packages/fs/tool-fs/package.json` 结构与根 scripts：tsdown 构建、oxlint、vitest、lefthook）。
-- 影响：M1 起所有会话与提交必须遵守；违反红线 R1–R9 的提交拒绝重做。
-
-### D14（2026-08-14）全 TypeScript 且不建桥（用户拍板："其他人都是用 TypeScript"）
-
-- **插件（含确定性原语）100% TypeScript 单仓实现**：prepare/chunk/brief/glossary/style/checkpoint/assemble/audit/status 全部本仓库 TS 原生实现，与 DSH 生态完全同构，**零外部运行时依赖**（无 Python、无 `ctx.subprocess` 桥、无 pin/探针/路径配置）。
-- 可行性依据（已量化）：需移植的原语 = chunker/assembler/consistency/format_protector + 预处理，共 1349 行 Python（插件模式子集约 1000 行，extractor 的 PDF/EPUB 逻辑不需要）；配套测试 497 行一并移植为 golden。
-- **共享边界是协议**：与 Itranslation CLI 产物的互操作靠 PROTOCOL.md 文件协议（glossary/checkpoint/␟ 对齐格式），不靠共享代码；两实现漂移用协议一致性 golden 测试兜底（DEVELOPMENT §7）。
-- **Mode B 不建桥**：agent 用 DSH 现有 bash 工具直跑 `uv run python translate_book.py`（CLI 自带 checkpoint/审计/RAT），无需插件侧子进程机制。
-- 连带影响：M1–M4 完全不动 Itranslation 仓库（原 M2 的 ACT/SCENE、行模式、prepare_gutenberg、thin CLI 全部改为本仓库 TS 实现）；D10 撤销；D5 二次修订；PROTOCOL.md §2 thin CLI 契约降级为"Mode B 议题时的预留知识"。
-- DSH 调研的 `ctx.subprocess`/依赖规范章节保留（RESEARCH-DSH.md §5/§6），标注为预留知识。
-
-### D15（2026-08-14）完全按 DSH 插件生态对齐（用户拍板）
-
-- **规范来源**：DSH 官方 cookbook 三件套为最高准绳（只读 checkout `/home/yisan/deepseek-harness/docs/cookbook/`）：
-  1. `adding-a-package.md` —— 包清单与不变式（package.json 字段、`files` 精确清单、tsconfig、README 规范结构、验证序列）；
-  2. `adding-a-tool.md` —— 工具契约源真（`defineTool` 全规则、execute 契约、UI 卡片呈现与 presenter 纯函数铁律）；
-  3. `extension-cookbook.md` —— 特性→机制映射（我们的特性 = `ctx.tools.register` + `ctx.systemPrompt.section` + skill + 内置 subagent/文件工具）。
-- 落实：DEVELOPMENT.md §4 重写为生态一致性规范（含包不变式、工具契约、README 结构、角色命名表、验证序列与生态对齐清单）；新建仓库根 `AGENTS.md`（会话交接，生态惯例位置）。
-- 与 D14 合意：单包插件（single-purpose plugin = one package，不需要 Service/Provider 拆分）、无外部运行时依赖、与 DSH 内置工具（bash/subagent/fs/skill）组合使用。
-
-## 修订记录（2026-08-14，评估轮）
-
-- 用户对旧路线图（P1–P5）不满意 → DESIGN.md §8 重写为里程碑制（M0–M5，Hamlet 主线）。
-- 用户要求 Python 依赖方式按 DSH 规范调研 → D10 定案（方案 A：`ctx.subprocess` + 路径配置 + 失败即报错）+ RESEARCH-DSH.md §6 存证。
-- D5 拆分 Mode A/B（agent 定位张力：本仓库原设计 = agent 翻译；Itranslation Q1 = agent 编排，两者应收进同一设计）。
-- D1 的"会话长上下文"卖点降级为"工作缓存"，文件协议升格为真相源。
-- D11/D12 拍板（著名台词完全重译；M4 只做 Mode A）。
-- D14 拍板（全 TS 且不建桥）→ D5 二次修订（共享边界=协议）、D10 撤销（桥取消）、M2 收回本仓库。
-- D15 拍板（完全按 DSH 插件生态）→ DEVELOPMENT.md §4 生态一致性规范 + 仓库根 AGENTS.md。
-
-## 未决问题（新对话可继续）
-
-1. **skill 分发形态**：L1 用工作区 `.dsh/skills`（零接线）；L2 包内 skill 由插件自行注册 provider 还是文档指引手动复制，M3 时定。
+- 用户明确"模式"一词为随口之说，不构成正式分类体系；一切以 D1–D14 的具体决策为准。
+- 已被否定的选项（成本闸、批量优先、双语对照、对话式片段翻译等）不再单列决策，仅作背景。

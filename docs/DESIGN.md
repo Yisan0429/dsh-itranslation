@@ -1,293 +1,229 @@
-# 设计：Itranslation as DSH 插件（v2，评估修订版）
+# Itranslation × DSH 插件设计（v1）
 
-> 状态：设计 v2（2026-08-14）。上一版经用户反馈（"路线不满意""按 DSH 规范调研依赖"）与本轮一手核实后全面重估，覆盖 v1。
-> 调研与核实依据：`docs/RESEARCH-DSH.md`（DSH 机制+外部依赖规范）、`docs/ITRANSLATION-CORE.md`（Itranslation 现状，含 Hamlet 缺口核实）、`docs/DECISIONS.md`（决策与修订记录）。
+> 状态：设计文档，暂不实现。
+> 本文档为 Itranslation 迁移到 DeepSeek Harness（DSH）插件生态的唯一设计依据，2026-08-14 起从零确立。
+> 旧版文档（含历史 DESIGN / DECISIONS / RESEARCH 等）全部作废，不作为任何依据。
+> 所有决策均可追溯到 `DECISIONS.md`。
 
-## 零基础导读（先看这里，1 分钟看懂本项目）
+---
 
-1. **做什么**：做一个插件，让你在自己的 AI 助手（DeepSeek Harness）里**边聊边翻译整本书**。第一本：《哈姆雷特》（诗体戏剧），最终产出完整中文电子书（txt/Markdown/epub）。
-2. **用起来什么样**：对 AI 说"开始翻哈姆雷特" → AI 处理原文、按幕/场切段，一场场翻译；人名地名等译法**先问你定夺**，定下的记入术语本全书统一；你随时插话改风格（"再文雅点""语气再阴郁些"），记入风格本后续都遵守；随时暂停、下次"接着翻"靠进度本续跑；最后程序拼装成书。
-3. **和原命令行工具的分工**（Itranslation，`/home/yisan/Itranslation`）：命令行版 = 批量全包（便宜、快、不用盯、可复现）；本插件 = 精品模式（人盯着翻、随时改、讲究全书风格统一）。两者产物互通（同一套文件格式），不互相替代。
-4. **三个核心思想**：
-   - AI 的记忆靠不住（会话一长就被压缩）→ **一切重要东西落文件**（术语本/风格本/进度本/稿子），文件是唯一真相源，AI 干活前先读文件；
-   - **分工**：AI 负责翻译（要理解力），插件程序负责机械活（切文本/对行数/拼装/查术语漂移）——机械活由程序做就绝不出错、错了也查得出；
-   - **写法**：全 TypeScript、完全按 DeepSeek 官方插件规矩（用户拍板"完全按 DSH 插件生态"），零外部依赖，装进 AI 助手最顺。
-5. **分五步**：M1 先不写代码，用一份"工作说明书"让 AI 真翻第一幕，验证规矩行不行 → M2 把机械活写成程序（移植原 Itranslation 测试保一致）→ M3 包装成正式插件装入实测 → M4 全书翻完验收 → M5（可选）对比实验/网页面板/开源。
-6. **现状**：设计阶段（M0）完成，零代码；下一步 M1。本导读之后的内容是给实现者看的技术细节，产品层面看 §1/§6/§8/§10 即可。
+## 1. 核心理念
 
-## 0. 上一版的问题（为什么重写）
+Itranslation 作为 DSH 插件的核心理念只有两条：
 
-1. **卖点夸大**：v1 称"全书状态活在会话里"。DSH 实际有三道闸把逐字内容逐出上下文：spill（工具结果 >50KB 落盘）、tool-result-pruner（>8KB 只留头尾）、compaction（旧区间 LLM 摘要化，只留 ~16% 尾巴）。**会话上下文只能是工作缓存；工作区文件才是唯一真相源。**
-2. **D5 一刀切**：把"插件不调 LLM"混同为"翻译必须由 agent 在会话内做"，漏掉了 agent-as-operator 模式——而 Itranslation 自身 SOLUTION.md Q1 的定位正是"agent 作为流水线的操作者/编排者"。v2 拆分 Mode A / Mode B（§1.3）。
-3. **subagent 回传机制没设计**：DSH 的 subagent 把**最后一次 assistant 消息全文**回传给父代理（非摘要）。章节 fan-out 若整章回传会撑爆父上下文；正确姿势是 subagent 写文件、只回短报告（dsh-translate-docs skill 即此解法）。v2 把它固化为"简报驱动"工作流（§6）。
-4. **Python 桥不符合 DSH 规范**：v1 写"Node `child_process` 长驻调用"。DSH 有一等 seam `ctx.subprocess`（`spawn`/`resolveExecutable`/env scrub/树级终止），ACP/LSP/ripgrep 全走它；v2 一度改用该 seam，**D14 起（全 TS）连桥一起取消**——共享边界改为文件协议（调研结论留档 RESEARCH-DSH.md §5/§6 作 Mode B 预留知识）。
-5. **P1 headless 接口过度设计**：长驻进程 + JSON 行协议对纯计算原语（chunker/assembler/consistency，无模型加载）是过度工程。v2 曾改为单次调用 thin CLI；**D14 起 thin CLI 也取消**（本仓库 TS 原生实现，见 §3.2）。
-6. **验收书与工具假设全按散文小说（Gatsby）设计**；首书改为 **Hamlet（诗体戏剧）**后已核实的三个缺口：`parse_structure` 不认 ACT/SCENE；句切分面向散文段落、不适用诗行；`prepare_gutenberg.py` 尚不存在（§7）。
-7. **路线图是工序列表（P1–P5）而非成果里程碑**；v2 改为 M0–M5 里程碑制，Hamlet 为主线（§8）。
-8. **人机协作循环只挂在远期 L3 UI 上**；协作首先是协议问题（审校记录、裁定、重译语义），v2 落入文件协议与工作流（§5、§6），UI 只是它的呈现层。
+1. **质量与可复现优先**。翻译质量必须是确定性、可验证、可重跑的：同一本书、同一配置，流程与产出可复现；每次运行留下完整证据链（配置、各过程模型、耗时、token、审查结果、修订记录），可 diff、可对比、可审计。
+2. **规模与成本经济**。把整本书翻译做成低成本生产线：断点续跑不重复付费；章节并行；每个过程的模型由用户自选（成本控制权交还用户）；反思修订按书询问、按需开启。
 
-## 1. 价值主张（诚实版）
+工程化表述：
 
-### 1.1 双模式定位
+- **P1 证据链**：每次翻译运行产出 `meta.json` 及审查报告、术语表、状态文件，全部落盘，可复现、可对比。
+- **P2 成本纪律**：不做强制成本闸（用户明确不要）。成本控制通过三个手段实现——用户自选各过程模型、断点续跑避免重复付费、反思修订默认按书询问且只修订具体问题。
+- **P3 确定性边界**：分块、对齐、组装、格式处理是确定性代码，不经过 LLM；LLM 只出现在预读、翻译、审查、修订四处，且每处输出都落盘可审计。
 
-| | 独立 CLI（Itranslation） | DSH 插件模式（本仓库） |
+---
+
+## 2. 场景与角色
+
+**主场景**：用户把一本书交给 agent；agent 通过插件在约束下决策并翻译；**全程在 DSH 对话框内完成**，不引入独立桌面面板。
+
+| 角色 | 职责 |
+|---|---|
+| 人（用户） | 交书；三处停点做确认（译文要求、人工协同术语、审查结果过目）；最后拿成品 |
+| 主 agent | 全程决策者：第 0 步发确认卡、统一样式、派发子代理、读审查报告、决定修订范围、汇报进度 |
+| 子代理 | 一章一个，按注入的风格说明与术语表逐句翻译该章 |
+| 插件 | 提供确定性工具与状态文件；执行流程/质量/术语/证据约束；提供审查标准模板 |
+
+**三处停点**（其余环节 agent 自主推进，仅异常时回头询问）：
+
+1. 第 0 步译文要求确认；
+2. 第 2 步人工协同术语确认（自动模式无此停点）；
+3. 第 6 步全书审查结果给用户过目，用户决定进入修订还是出成品。
+
+---
+
+## 3. 八步流程设计
+
+每步标注执行者、输入、输出、停点与开关。
+
+### 0. 确认译文要求 — 停点①
+
+主 agent 主动发问题卡（一次或分页），用户答完才开始。卡面内容：
+
+| 项 | 说明 |
+|---|---|
+| 体裁与语气 | 可 auto，也可明确指定 |
+| 输出格式 | 用户选择（v1 范围见 §8） |
+| 术语确认模式 | 自动（默认）/ 人工协同 |
+| 反思修订开关 | 开 / 关，**每本书都问** |
+| 各过程模型 | 预读、翻译、审查、反思四个过程分别选模型（默认值来自设置，见 §7） |
+
+### 1. 提取并预读
+
+- 执行：插件确定性提取 + 预读模型。
+- 输入：书文件。输出：清理后的文本、章节结构、风格说明草案、候选术语表（`style.md`、`glossary.json` 初稿）。
+
+### 2. 统一风格 + 确认关键术语
+
+- 主 agent 基于预读统一全书风格说明。
+- 术语模式：
+  - **自动（默认）**：预读生成的术语表直接采用；模型自己没把握的术语才进问题卡询问。
+  - **人工协同**：术语卡全量给用户确认/增删 —— 停点②。
+
+### 3. 按章节分块
+
+- 确定性步骤：章节识别 → 句子级切分 → 体裁化重叠上下文（overlap）。
+- 产出分块清单：章 → 块 → 句子索引。分块参数【提案，见 §9】。
+
+### 4. 子代理逐章翻译
+
+- 一章派一个子代理；任务注入：该章文本 + 风格说明 + 术语表 + **逐句对齐要求**（译文句序与原文对齐）。
+- 翻译模型按用户选择；每章译文独立落盘（断点单元）。
+
+### 5. 章节对齐组装
+
+- 确定性步骤：按句子索引对齐合并；句数失配只告警、不自动重译（修订决策属于第 6/7 步）。
+
+### 6. 主模型全书统一审查 — 停点③
+
+- 时机：全书译完统一审（不逐章审）。
+- 审查模型按用户选择；按 §4 审查标准逐句定位问题，产出审查报告。
+- 报告给用户过目：用户决定"进入修订"或"直接出成品"。
+
+### 7. 反思修订（可选，每本书在第 0 步问）
+
+- **针对审查报告里的具体问题定向修订**（只重译问题句/段），不按章重跑；
+- 修订后对修订项复审；术语改动回写术语表并记录。
+
+### 8. 规范格式出成品
+
+- 按第 0 步选择的格式输出成品文件；
+- 同时产出 `meta.json` 证据链、终版术语表与审查报告存档。
+
+---
+
+## 4. 审查标准【提案，待用户确认】
+
+主模型审查按五维执行，问题定位到句：
+
+| 维度 | 标准 |
+|---|---|
+| 准确性 | 无错译、漏译、增译 |
+| 流畅度 | 符合中文表达习惯，无翻译腔 |
+| 术语一致性 | 与确认后的术语表一致 |
+| 风格一致性 | 与第 2 步统一的风格说明一致 |
+| 格式完整性 | 段落、对话、占位符、章节结构完整 |
+
+问题分级建议：**严重**（错译/漏译/术语违背，必须修订）、**一般**（流畅/风格问题，建议修订）、**提示**（可选项）。严重问题未修订不得进入第 8 步。
+
+阈值与分级细则、报告模板待用户确认后定稿。
+
+---
+
+## 5. 架构设计
+
+### 5.1 交付形态
+
+- **目标形态：agent preset**（含 TS 包的 `cordis.yml` 组合），可复制、可持久交付。
+- 动态 Cordis 插件仅作为早期功能验证手段（进程级、临时），不作为交付物。
+
+### 5.2 执行引擎：DSH 原生实现
+
+确定性文本层与 LLM 层分离，**全部在 DSH 生态内实现，无 Python 依赖**：
+
+| 层 | 实现 | 内容 |
 |---|---|---|
-| 场景 | 批量、便宜、可复现的规模生产 | 交互式精品翻译 + 人机协作 |
-| 一致性来源 | glossary/RAT 注入 + 一致性审计 | 文件协议（glossary/style）+ 同样用管线审计兜底 |
-| 成本 | batch API、前缀缓存、并行 | 会话内翻译更贵（Mode B 可回 CLI 定价） |
-| 可复现性 | 高（checkpoint + 确定性管线） | 低（文件协议 + 审计保证跨会话一致） |
+| 确定性文本层 | preset 内的 TS 包 | 提取、章节识别、句子切分、对齐组装、格式输出 |
+| LLM 层 | DSH 子代理 + 主模型 | 预读、翻译、审查、修订 |
 
-两者共用同一 Python 核心（Itranslation 仓库），产物互操作（checkpoint/glossary/␟ 对齐格式同构）。
+### 5.3 包结构【提案】
 
-### 1.2 记忆模型（修正 v1 的夸大表述）
+- `@…/itranslation-core`：Host 确定性文本引擎（提取/分块/对齐/组装/格式）。
+- `@…/itranslation-tools`：Host 工具面 + 状态文件管理。
+- `@…/itranslation-client`：Client UI（Run 卡进度、设置页）。
 
-三层记忆，职责分明：
+### 5.4 工具面
 
-| 层 | 载体 | 职责 | 可靠性 |
-|---|---|---|---|
-| 会话上下文 | DSH 会话 + compaction | **工作缓存**：当前任务的判断、人机对话 | 会被压缩/截断，不可依赖 |
-| 工作区文件 | 文件协议（§5） | **唯一真相源**：术语、风格、checkpoint、译文全文 | 持久、可审计、跨会话续跑 |
-| 确定性管线 | Itranslation Python 核心 | **确定性**：分块/对齐/组装/审计的机械正确 | 可测、可复现 |
+每个工具一次调用一个受限工作单元，天然可续、可拦、可审：
 
-翻译后续场景时，agent **必须读文件**（glossary/style/已译草稿），而不是依赖"记得"。
-
-### 1.3 两种插件用法（Mode A / Mode B）
-
-约束（决策 D5 修订版）：**插件包（Node 侧）绝不直接调 LLM**。翻译在两种模式下分工：
-
-- **Mode A（agent-as-translator，精品/交互）**：翻译由 agent/subagents 在 DSH 会话内完成。适合：文学精品、逐段推敲、用户随手指点（"哈姆雷特的语气再阴郁一点"）。代价：token 贵、句/行数纪律靠提示词与组装校验。
-- **Mode B（agent-as-operator，批量/可复现）**：agent 作为操作者，通过工具调 Itranslation 的 Python 管线（现有 CLI 或 thin API），**LLM 调用发生在 Python 侧**，沿用 CLI 的质量链（句数重试、反思/修订、RAT、batch 定价、前缀缓存）。适合：跑量、对照 CLI 基准。这与 Itranslation Q1 的自我定位一致（agent = 编排者）。
-
-同一套工具与文件协议支撑两模式；SKILL.md 各给一条工作流路径。**M1–M4 只做 Mode A**（决策 D12，插件价值所在）；Mode A/B 对比矩阵后延至 Itranslation 行模式与 CLI 适配就绪后（M5 可选）。
-
-## 2. 三层形态（投入递增）
-
-### L1 — Skill（零 DSH 改动，零代码）
-
-`SKILL.md`（frontmatter：name/description/disable-model-invocation/user-invocable）+ 随仓库的模板文件（glossary/style 骨架）。内容 = **工作流地图 + 翻译契约**：
-
-1. 翻译契约（从 Itranslation `translator.py` 的工艺提炼）：␟ 行/句对齐、句数对齐、Context 只读、§/¶ 保留、术语先读后译、未定术语进 pending、不即兴造词。
-2. 简报驱动委派：每个翻译单元由编排者生成"简报"（契约 + 单元正文 + glossary/style 命中 + 邻近样例），subagent 只读简报、译后写文件、只回短报告。
-3. 文件协议读写（§5）与审计/组装步骤。
-
-加载：工作区 `.dsh/skills/itranslate-book/SKILL.md`（rank 100，零接线）。L1 只靠 bash/read/write/subagent 现有工具跑通，不依赖 L2。
-
-### L2 — 工具插件包（核心价值）
-
-npm 包（本仓库）：`"dsh": {"bundle": {"patch": "./cordis.patch.yml"}}`，经 `dsh plugin --profile <name> add <git-spec>` 装入 profile。**100% TypeScript 单包插件**（D14/D15）：注册模型工具（§4）+ 确定性原语 TS 原生实现（§3.2）+ 可选包内 skill provider。插件不调 LLM（D5）。包结构/工具契约/README 结构完全按 DSH 官方 cookbook（DEVELOPMENT.md §4 + 附录 B）。
-
-### L3 — Web 客户端 UI 插件（远期）
-
-书籍翻译面板：场景进度、续跑、审计视图、双语对照。需要 `dsh.client` 客户端插件包；协作语义已在文件协议里，UI 只是呈现层。
-
-## 3. 架构
-
-```
-DSH 会话（agent，长上下文但会被压缩 → 只当缓存）
- ├─ skill: itranslate-book（工作流地图 + 翻译契约）
- ├─ tools: itranslate.*（13 个，每原语一个；canonical 输出结构化、render 只投影短摘要）
- │         └─ TS 原生确定性原语（ChunkEngine/AssembleEngine/AuditEngine + *Store，§3.2）
- │            文件 I/O 走 ctx.fs（受 sandbox 治理）；零外部进程（D14）
- ├─ subagents: 翻译单元 fan-out（简报驱动：读 brief 文件 → 翻译 → 写 drafts 文件 → 短报告）
- └─ 工作区文件（唯一真相源，§5）:
-     input/<book>.md · state/<book>/{glossary.json,style.json,briefs/,drafts/,checkpoints/,reviews/}
-     output/<book>/ · reports/<book>/
-```
-
-### 3.1 上下文预算三闸（设计原则）
-
-DSH 真实机制（RESEARCH-DSH.md §7 核实）：
-
-- **spill**：工具结果 >50KB（`maxInlineBytes: 50000`）落盘、模型只见文件引用；
-- **tool-result-pruner**：>8KB（threshold 8192）的工具结果只留头 4096 + 尾 1024 字符；
-- **compaction**：旧区间 LLM 摘要化，只保留 ~16% 尾部原文（retainRatio 0.16）。
-
-设计原则：**大对象只落盘，模型只见元数据与短报告**。chunk/译文/brief 全文一律写工作区文件；工具 canonical 结果可以携带完整数据（供程序消费），但 `render` 投影只给模型短摘要（路径、计数、状态）；subagent 结果必须"写文件 + 短报告"。
-
-### 3.2 确定性原语：TS 原生实现（D14/D15）
-
-**共享边界是协议，不是代码**（D14 二次修订）：插件模式的确定性原语在本仓库用 TypeScript 原生实现，与 Itranslation CLI 产物的互操作靠 PROTOCOL.md 文件协议保证。已量化（DECISIONS D14）：需移植的原语 = chunker/assembler/consistency/format_protector + Gutenberg 预处理，共 1349 行 Python（插件模式子集约 1000 行；extractor 的 PDF/EPUB 逻辑不需要）；配套测试 497 行一并移植为 golden。
-
-- 实现分块：`ChunkEngine`（结构解析 ACT/SCENE + 句/行切分 + 打包）、`AssembleEngine`（body_join/first_lock + 失配统计 + txt/md/epub 输出）、`AuditEngine`（expected/observed 计数 + 漂移报告）、`FormatProtector`（占位符）、`GlossaryStore`/`StyleStore`/`CheckpointStore`（文件协议 CRUD + schema 校验）——角色命名按 DSH 词汇表（DEVELOPMENT §4.5）。
-- 行为一致性靠 **golden 测试**：移植 Itranslation 同源测试（`tests/test_chunker.py` 等）为本仓库 vitest fixtures，注明来源 commit；两边漂移时以"协议语义 + golden 用例"裁决（DEVELOPMENT §6）。
-- 与 CLI 的同构点：文件协议（glossary/checkpoint/drafts）、`␟` 对齐、§/¶ 标记——PROTOCOL.md 是唯一权威。
-- Mode B（M5 可选）：agent 用内置 bash 工具直跑 `uv run python translate_book.py`，无需插件侧进程（原 `ctx.subprocess` 桥已随 D14 取消，调研结论留档于 RESEARCH-DSH.md §5/§6 作预留知识）。
-
-## 4. 工具清单（L2，每原语一个，决策 D6）
-
-模型可见字段只有 name/description/parameters（allowlist）；每个工具必须声明 `output.schema` + `render` 投影。
-
-| 工具 | 功能 | TS 实现模块（golden 来源 = Itranslation 同名模块/测试） | render 给模型的内容（canonical 可更全） |
-|---|---|---|---|
-| `itranslate.prepare` | Gutenberg/纯文本预处理（页眉页脚、折行、ACT/SCENE→`##`、人物名行/舞台指示标记），写 `input/<book>.md` | `PrepareEngine`（新增；戏剧版式为 Hamlet 专项） | 输出路径 + 结构列表 + 字符数 |
-| `itranslate.chunk` | 按结构切分（散文句级 / 诗行行级），写 chunks 文件 | `ChunkEngine`（golden：chunker.py + test_chunker.py；补 ACT/SCENE + 行模式） | chunks 文件路径 + 单元数/行数 + 超长行标记 |
-| `itranslate.brief` | 为翻译单元渲染简报（契约 + 正文 + glossary/style 命中 + 邻近样例 + 句/行数要求），写 brief 文件 | `BriefRenderer`（工艺参照 translator.py `_build_translation_prompt`；无向量库） | brief 文件路径 + 命中术语数 |
-| `itranslate.glossary_get` | 读术语表（按书 slug） | `GlossaryStore`（golden：consistency.py + test_consistency.py） | 术语数 + 关键条目摘要 |
-| `itranslate.glossary_set` | 新增/更新单条术语（含 pending/alias 候选） | 同上 | 确认行 |
-| `itranslate.glossary_merge` | 批量合并术语（人工/agent 裁定后） | 同上（merge 语义） | 增/改/删计数 |
-| `itranslate.style_get` | 读风格书（人物声音/策略） | `StyleStore` | 条目数摘要 |
-| `itranslate.style_set` | 更新风格书 | 同上 | 确认行 |
-| `itranslate.checkpoint_load` | 读场景进度（含 content_hash） | `CheckpointStore`（格式与 CLI 同构） | 状态摘要（completed/failed 块） |
-| `itranslate.checkpoint_save` | 写场景进度 | 同上 | 确认行 |
-| `itranslate.assemble` | 组装（body_join/first_lock）+ 占位符恢复 + 输出 TXT/MD/EPUB | `AssembleEngine` + `FormatProtector`（golden：assembler.py + format_protector.py 及测试） | 输出路径 + 失配统计 |
-| `itranslate.audit` | 漂移审计报告（expected vs observed） | `AuditEngine`（golden：consistency.py audit_all） | 漂移条目数 + 位置清单 |
-| `itranslate.status` | 全书进度总览（各场景状态、checkpoint、术语/风格条目数、待审清单） | pipeline 结果 + 文件扫描 | 进度表（纯文本） |
-
-设计要点：
-
-- `assemble` 的失配统计是**质量闸门**：>0 失配即要求 agent 定位重译，不静默通过。
-- `audit` 漂移修正闭环：**先改 glossary 契约，再按新契约重译漂移句**（不是只改译文——术语表是契约，同 dsh-translate-docs 的规则）。
-- `brief` 让 subagent 不必重读全书：简报自足（正文 + 命中术语 + 风格 + 邻近样例 + 计数要求）。
-- 13 个工具的描述各控制在两行内，压低模型上下文成本。
-
-## 5. 文件协议 v1（唯一真相源）
-
-### 5.1 工作区布局
-
-```
-<workspace>/
-  input/<book>.md                        # 预处理后源文本（## ACT/SCENE 标题 + 标记）
-  state/<book>/
-    glossary.json                        # 术语表（契约）
-    style.json                           # 风格书（人物声音/策略）
-    briefs/<scene>__<chunk>.md           # 翻译简报（subagent 工作集）
-    drafts/<scene>.md                    # 场景译文草稿（␟/行对齐）
-    checkpoints/checkpoint_<slug>__<scene_index:03d>.json   # 与 CLI 同构
-    reviews/<scene>.md                   # 人工审校记录（裁定、批注）
-  output/<book>/<book>.{txt,md,epub}     # 组装成品
-  reports/<book>/audit_*.json            # 审计报告
-```
-
-### 5.2 术语表 glossary.json
-
-```jsonc
-{
-  "version": 1,
-  "book": "hamlet",
-  "terms": {
-    "Elsinore": {"zh": "艾尔西诺", "note": "城堡名", "first_seen": "act1_scene1", "source": "human"},
-    "the green light": {"zh": "绿灯", "note": "母题，全书统一", "aliases": ["绿光"], "first_seen": "ch1"}
-  },
-  "pending": ["to be or not to be"],   // 未定译法，禁止即兴翻译
-  "updated_at": "ISO8601"
-}
-```
-
-规则（继承 dsh-translate-docs 的纪律）：先读后写；**未定术语进 pending，不许即兴造词**；同一原文多译法必须记 alias 候选而非静默漂移；人工裁定后更新契约，译文按契约重译。
-
-### 5.3 风格书 style.json
-
-```jsonc
-{
-  "version": 1,
-  "book": "hamlet",
-  "global": {"register": "诗剧，素体诗按行对齐；白话文为主，保留原文修辞密度"},
-  "characters": {
-    "Hamlet": {"voice": "阴郁多思、机锋锐利", "address": "哈姆雷特"},
-    "Polonius": {"voice": "絮叨、谚语堆砌"}
-  },
-  "policies": {
-    "famous_lines": "retranslate",           // 决策 D11：全书自译，经典译本仅审校参考
-    "stage_directions": "translate",        // 舞台指示译文用〔〕标注
-    "verse": "line_for_line"
-  },
-  "updated_at": "ISO8601"
-}
-```
-
-人物声音是 KG"风格区"概念在戏剧上的自然扩展（`kg_get_style_for_paragraph`）。
-
-### 5.4 译文草稿与 checkpoint
-
-- 草稿按 `␟` 对齐（散文句级 / 诗行行级），与 CLI 产物互操作；`§`/`¶` 结构标记保留。
-- checkpoint 字段与 CLI 同构（`completed_chunks`/`failed_chunks`/`translations`/`content_hash`/`updated_at`），命名 `checkpoint_<book_slug>__<scene_index:03d>.json`（Hamlet 的"章"= 场；`content_hash` 防源文本变更后续跑错乱）。
-- 人工"重译某场" = 删该场 checkpoint + 保留 glossary/style（决策记忆不丢，只重做翻译）。
-
-## 6. 翻译工作流（含人机协作循环）
-
-### 6.1 每场景（Mode A 主线）
-
-```
-编排者（主 agent，不自己翻译）
-  1. prepare → chunk（写文件，拿结构清单）
-  2. 逐场景：
-     a. glossary/style 先读（工具）
-     b. brief → subagent（简报自足；subagent 读 brief → 翻译 → 写 drafts/<scene>.md → 短报告）
-     c. checkpoint_save；人工审（reviews/ 记录裁定）
-     d. assemble 试组 → 失配>0 则按失配清单重译对应单元
-  3. audit → 漂移修正闭环（改契约 → 重译漂移句 → 复查）
-  4. assemble 定稿 + 双语对齐资产导出（Itranslation Q1 的 TM 目标）
-```
-
-- 并行：多个场景的 brief→subagent 可并发 fan-out；术语/风格文件写入有顺序约束时串行化或事后 merge。
-- 崩溃恢复：重开会话读 `status` + checkpoint 续跑，不依赖"记得"。
-
-### 6.2 Mode B（agent-as-operator）
-
-同一文件协议；agent 用 DSH 内置 bash 工具直跑 Itranslation CLI（`uv run python translate_book.py`，CLI 自带 checkpoint/审计/RAT/反思链），agent 负责编排、术语裁定、审校。LLM 与定价在 Python 侧。**无插件侧子进程（D14）**。
-
-### 6.3 人机协作点（协议层，UI 只是呈现）
-
-| 协作点 | 机制 |
+| 工具（候选名） | 工作单元 |
 |---|---|
-| 术语裁定 | 用户在 chat 裁定 → `glossary_set`/`glossary_merge` 更新契约 → 漂移句重译 |
-| 风格/策略 | `style_set`（人物声音、著名台词策略） |
-| 逐场审校 | `reviews/<scene>.md` 批注；重译语义 = 删 checkpoint |
-| 审计修正 | audit 报告 → 改契约 → 重译 → 复查闭环 |
-| 进度 | `itranslate.status` 一键总览 |
+| `itranslation.prepare` | 一本书：提取 → 清理 → 章节识别 → 预读 → 风格/术语初稿 |
+| `itranslation.glossary` | 术语表确认/增删/回写（两种术语模式共用） |
+| `itranslation.chunk` | 全书分块清单 |
+| `itranslation.translate` | 一章：派发子代理翻译并落盘 |
+| `itranslation.align` | 全书章节对齐组装 |
+| `itranslation.audit` | 全书审查（产出报告） |
+| `itranslation.reflect` | 定向修订指定问题 |
+| `itranslation.assemble` | 按选定格式出成品 + meta.json |
+| `itranslation.status` / `itranslation.resume` | 进度与证据摘要 / 断点续跑 |
 
-## 7. Hamlet 适配（首书专项，事实已核实）
+### 5.5 状态文件（真相源）
 
-已核实 Itranslation 现状与所需改动（详见 ITRANSLATION-CORE.md §4）：
+书级目录 `workspace/books/<slug>/`：
 
-| # | 事实（已核实，Itranslation 侧） | 影响 | 改动（本仓库 TS 实现，golden 参照 Itranslation） |
-|---|---|---|---|
-| 1 | `parse_structure` 只认 `CHAPTER/BOOK/PART/Section` 与 `#/##`，不认 `ACT/SCENE`（`src/chunker.py:321-336`） | Hamlet 整本会被识别为 1"章" | `ChunkEngine` 补 `ACT I`/`SCENE II.` 正则 + 人物名行/舞台指示识别 |
-| 2 | 句切分面向散文（`\n\n` 分段 + `[.!?]` 边界，`src/chunker.py:99-179`） | 诗行单 `\n` 分隔、行末标点不规则 → 整段独白被并成一句或切碎 | **行模式（verse）**：一行 = 一个对齐单元，行对行翻译 |
-| 3 | `scripts/prepare_gutenberg.py` 不存在（scripts/ 仅 check_version.py） | Gutenberg 文本无法直接喂入 | `PrepareEngine` 新建（含戏剧版式：页眉页脚、折行、ACT/SCENE→`##`、人物名行、舞台指示标记） |
-| 4 | 组装策略 body_join/first_lock 按句索引对齐 | 行模式下按行索引对齐（更自然） | `AssembleEngine` 加行模式路径（复用同一索引机制） |
-| 5 | 术语协议只有"术语→译法" | 戏剧需人物声音、著名台词策略 | style.json 协议（PROTOCOL.md §3.3，本仓库实现） |
-
-设计影响：
-
-- 对齐契约在行模式下变成**行对行**：草稿行数 = 原文行数（含空行/舞台指示行的对应约定），比散文句数对齐更严格也更机械可校验——Hamlet 反而是更友好的验收对象。
-- 戏剧三类文本翻译策略不同：台词（素体诗，行对齐）、人物名行（格式标记，不译或统一译名）、舞台指示（`policies.stage_directions` 控制，译文用〔〕包裹）。
-- **著名台词策略已拍板（决策 D11）：完全重译**——全书保持单一译者风格，经典译本（朱生豪/梁实秋等）仅作审校参考，不采用、不做对照。
-- 双语对齐资产：行对行 + 场景结构 = 天然逐行双语语料，直接对接 Itranslation Q1 的 TM 语料目标。
-
-## 8. 路线图（里程碑制，Hamlet 主线）
-
-| 里程碑 | 内容 | 仓库 | 产出与验收 |
-|---|---|---|---|
-| **M0** | 设计定稿 + 开发规范：本文档 v2 + 决策 + 调研 + DEVELOPMENT.md（强制规范）+ PROTOCOL.md（协议契约）+ AGENTS.md | 本仓库 | 六文档齐备；D1–D15 定案（含全 TS 不建桥、生态对齐） |
-| **M1** | L1：SKILL.md + 文件协议模板 + **Hamlet Act 1 人工在 DSH 会话跑通**（零代码） | 本仓库 | SKILL.md；Act 1 五场草稿（人工按 skill 驱动）；glossary/style v1 实际成形；验证记录 |
-| **M2** | TS 确定性原语：`PrepareEngine`（戏剧版式）+ `ChunkEngine`（ACT/SCENE + 行模式）+ `AssembleEngine` + `AuditEngine` + `*Store`；移植 Itranslation 497 行测试为 golden | 本仓库 | 原语单测 + golden 一致性；Itranslation 仓库不动 |
-| **M3** | L2：npm 包（照 DSH cookbook 包不变式）+ `cordis.patch.yml` + 13 工具注册（defineTool 契约 + UI 卡片）+ 包内 skill；装入本机 profile 实测；过生态对齐清单 | 本仓库 | 插件包可装可用；工具单测；附录 B 清单全过 |
-| **M4** | **Hamlet 全书 E2E**：DSH 会话内 Mode A 翻译全书 → 审计闭环 → 组装 TXT/MD/EPUB | 本仓库 | 0 错误块；审计报告；跨会话续跑验证 |
-| **M5（可选）** | Mode A/B 对比（agent 用 bash 工具直跑 Itranslation CLI）；Gatsby 散文路径回归（原验收书）；L3 Web UI；开源化/发布工程 | 本仓库 | 按需启动（对比报告复用 LLM-judge + BLEU/chrF + 人工抽检） |
-
-节奏原则：M1 零代码先验证工作流与协议（最便宜的试错点）；M2 只做 Hamlet 逼出来的最小 TS 原语（golden 测试兜底行为一致性）；M3 才动 DSH 插件机制；M4 一次性给出全书实证。任一里程碑不达预期可在 M1 后低成本掉头。
-
-## 9. 风险与对策（修订）
-
-| 风险 | 对策 |
+| 文件 | 内容 |
 |---|---|
-| 会话上下文被 compaction/spill/pruner 逐出（v1 低估） | 文件为真相源；简报驱动；subagent 写文件+短报告；工具 render 只投影摘要 |
-| subagent 整章回传撑爆父上下文 | 同上：回传只许短报告（dsh-translate-docs 实证手法） |
-| 句/行数对齐脆弱（agent 自由输出） | 行模式机械可校验；assemble 失配闸门 + 定位重译；M1 人工跑通时验证契约可行性 |
-| 会话内翻译 token 成本高 | Mode A 精品定位；M5 对比时量化差价 |
-| 会话式翻译不可逐位复现 | glossary/style/checkpoint 文件协议 + 审计；重译语义清晰（删 checkpoint 不丢决策） |
-| TS 移植与 Itranslation 行为漂移 | golden 测试（移植 497 行同源测试，注明来源 commit）；协议语义 + golden 裁决分歧；DEVELOPMENT §6 |
-| 上游 API 漂移 | 只依赖公开 cordis 契约（`ctx.tools`/`ctx.skills`/`ctx.systemPrompt`/patch 格式）；每里程碑按 RESEARCH-DSH.md §9 清单核查 |
-| 生态规范漂移（cookbook 更新） | 上游 cookbook 为准绳（DEVELOPMENT §4 开头）；漂移时先更新本仓库规范再动代码 |
-| DSH profile 机制细节变动 | 分发模型与官方唯一路径一致（profile bundle），随上游文档跟踪 |
+| `state.json` | 阶段进度、分块清单、各章译文状态 |
+| `glossary.json` | 术语表（来源：预读/人工/修订，含记录） |
+| `style.md` | 统一后的风格说明 |
+| `chapters/<n>.md` | 各章译文（断点单元，译完即落盘） |
+| `audit-report.md` | 全书审查报告 |
+| `meta.json` | 证据链：配置、各过程模型、耗时、token、审查与修订记录 |
 
-## 10. 验收标准（分档）
+断点续跑以章节为单元：`resume` 跳过已完成章，续译未完成章。
 
-**M1**：Hamlet Act 1 在 DSH 会话中按 SKILL.md 走完（0 代码）：五场草稿行对齐、glossary v1、style v1、验证记录含"契约是否被模型遵守"的实测结论。
+### 5.6 子代理派发
 
-**M4**：Hamlet 全书在 DSH 会话端到端翻译（Mode A）：0 错误块、TXT/MD/EPUB 产出、审计闭环全程可用、跨会话续跑不丢进度。
+- 一章一代理；任务含章节文本 + 风格说明 + 术语表 + 逐句对齐要求；
+- 翻译模型按用户第 0 步选择（模型覆盖参数以运行时 Inspect 为准）。
 
-**M5（可选）**：Mode A/B 对比报告（LLM-judge + BLEU/chrF + 人工抽检 + 时间/token）存档。
+---
 
-**通用**：任何时刻重开会话，凭 `status` + 文件协议可无损续跑；术语/风格决策经审计验证为契约一致性来源。
+## 6. 约束机制
+
+agent 在约束内自由决策，越界即被插件拦下：
+
+| 约束 | 内容 |
+|---|---|
+| 流程约束 | 八步工具序固定；分块、对齐必须走确定性工具，agent 不得绕过 |
+| 质量约束 | 审查五维为最低标准；严重问题未修订不得出成品 |
+| 术语约束 | 术语表一经确认即锁定；修订时改动须回写并留痕 |
+| 证据约束 | `meta.json` 必须存在且可复现（同书同配置可重跑对比） |
+
+自由边界：体裁/语气细节、汇报方式、修订策略、异常处理方式由 agent 自定。
+
+---
+
+## 7. DSH 集成点
+
+| 能力 | 用途 |
+|---|---|
+| `llm` 服务 / 模型路由 | 各过程模型由用户选择；主 agent 与子代理的模型覆盖参数实现时以 Inspect 为准 |
+| `subagents` 服务 | 一章一代理派发（preset 含 tool-subagent 行，provider: spawn） |
+| `settings` 服务 | namespace `itranslation`：各过程模型默认值、体裁默认值 |
+| Client Slots | `tool.view.cordis`（Run 卡进度/成本摘要）；`settings.section`（模型默认设置页） |
+| 问题卡 | 复用 DSH 现有提问交互（ask_user_question 同款），用于三处停点 |
+| 文件系统 | 工作区书级目录为真相源，agent 可直接 read/diff 核验证据 |
+
+---
+
+## 8. 范围与里程碑【提案】
+
+| 里程碑 | 内容 | 状态 |
+|---|---|---|
+| M1 | 单书闭环：TXT/MD 输入 → TXT/MD 输出；八步流程；断点续跑；证据链 | v1 |
+| M2 | EPUB 输入/输出 | 后置 |
+| M3 | PDF 输入/输出（TS 重写成本最高） | 后置 |
+| M4 | 批量多书、人工校订回路 | 后置（理念支持，流程未要求） |
+
+---
+
+## 9. 开放问题清单
+
+定稿前需用户逐项确认：
+
+1. **审查标准**：五维定义、问题分级（严重/一般/提示）、阈值、报告模板（§4 提案）。
+2. **分块参数**：句子级切分与体裁化 overlap 的参数值（继承原项目思路，数值待定）。
+3. **里程碑划分**：M1 是否仅 TXT/MD、EPUB/PDF 的后置顺序（§8 提案）。
+4. **状态文件字段**：§5.5 各文件的具体字段 schema。
+5. **子代理模型覆盖**：DSH `subagents` 的模型覆盖参数，实现时以运行时 Inspect 为准。
