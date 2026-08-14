@@ -1,0 +1,46 @@
+{
+  "name": "@deepseek-ai/dsh-itranslation-root",
+  "version": "0.1.0",
+  "license": "MIT",
+  "private": true,
+  "type": "module",
+  "packageManager": "pnpm@11.7.0",
+  "engines": {
+    "node": "^22.19.0 || >=24.0.0"
+  },
+  "workspaces": [
+    "packages/*/*"
+  ],
+  "scripts": {
+    "build": "npm run build:lib",
+    "build:lib": "npm run build:lib:host && npm run build:lib:client",
+    "build:lib:host": "tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host",
+    "build:lib:client": "tsc -b tsconfig.client.json && tsdown --env.DSH_BUILD_FACE client",
+    "typecheck": "npm run build:lib:host && npm run typecheck:contracts-ready",
+    "typecheck:contracts-ready": "tsc -b tsconfig.client.json",
+    "lint": "oxlint .",
+    "lint:fix": "oxlint . --fix",
+    "duplication": "jscpd --config .jscpd.json packages",
+    "test": "vitest run",
+    "test:coverage": "vitest run --coverage",
+    "knip": "knip --treat-config-hints-as-errors",
+    "publint": "publint packages/itranslation/core packages/itranslation/tools packages/itranslation/client",
+    "hygiene": "npm run knip && npm run publint",
+    "postinstall": "node scripts/install-lefthook.mjs"
+  },
+  "devDependencies": {
+    "@stylistic/eslint-plugin": "^5.10.0",
+    "@types/node": "^22.20.0",
+    "@vitest/coverage-v8": "^4.1.8",
+    "eslint-plugin-sonarjs": "^4.1.0",
+    "jscpd": "^5.0.12",
+    "knip": "^6.16.1",
+    "lefthook": "^2.1.9",
+    "oxlint": "1.76.0",
+    "publint": "^0.3.21",
+    "tsdown": "^0.22.2",
+    "tsx": "^4.22.4",
+    "typescript": "^6.0.3",
+    "vitest": "^4.1.8"
+  }
+}

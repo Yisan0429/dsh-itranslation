@@ -1,0 +1,37 @@
+{
+  // Doubles as the resolution facade (vitest/oxlint configs point here).
+  // NEVER add include/files to this file: it would leak into every extending
+  // package project and narrow the facade's match-all scope.
+  "compilerOptions": {
+    "target": "es2024",
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "declaration": true,
+    "sourceMap": true,
+    "declarationMap": true,
+    "composite": true,
+    "incremental": true,
+    "skipLibCheck": true,
+    "esModuleInterop": true,
+    "allowImportingTsExtensions": true,
+    "rewriteRelativeImportExtensions": true,
+    "verbatimModuleSyntax": false,
+    "strict": true,
+    "noUncheckedIndexedAccess": true,
+    "exactOptionalPropertyTypes": true,
+    "noImplicitOverride": true,
+    "noFallthroughCasesInSwitch": true,
+    "noUnusedLocals": true,
+    "noUnusedParameters": true,
+    "types": ["node"],
+    // Source-level resolution for every repo-local package. Project references,
+    // not declaration path aliases, keep each package compiled under its own
+    // tsconfig boundary. DSH peer packages (cordis, dsh-*) join here when the
+    // preset is wired into a DSH deployment (D15); remove on monorepo merge.
+    "paths": {
+      "@deepseek-ai/dsh-itranslation-core": ["./packages/itranslation/core/src"],
+      "@deepseek-ai/dsh-itranslation-tools": ["./packages/itranslation/tools/src"],
+      "@deepseek-ai/dsh-itranslation-client": ["./packages/itranslation/client/src"]
+    }
+  }
+}

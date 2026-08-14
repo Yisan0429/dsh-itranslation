@@ -1,0 +1,17 @@
+{
+  // Client-side typecheck aggregate: tests of the client package.
+  "extends": "./tsconfig.base.client.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rewriteRelativeImportExtensions": false,
+    // Tests execute under vitest on node; browser purity of package src is
+    // the client package's own tsconfig.
+    "types": ["node"]
+  },
+  "include": [
+    "packages/itranslation/client/tests/**/*.ts"
+  ],
+  "references": [
+    { "path": "./packages/itranslation/client" }
+  ]
+}

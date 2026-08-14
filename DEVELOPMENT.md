@@ -1,6 +1,6 @@
 # DEVELOPMENT（开发规范与决策日志）
 
-> 仓库文档有且仅有四份，均置于主目录：`README.md`、`AGENTS.md`、`DESIGN.md`、`DEVELOPMENT.md`（README/AGENTS 待写）。旧文档全部作废。
+> 仓库文档有且仅有四份，均置于主目录：`README.md`、`AGENTS.md`、`DESIGN.md`、`DEVELOPMENT.md`。
 
 ## 一、决策日志
 
@@ -49,6 +49,11 @@
 - D47 子代理工作区（已核实）：`spawn`（in-process）子会话的 `meta.cwd` 继承主会话 `SessionHeader.cwd`（主会话无 cwd 则子会话无 cwd；out-of-process dsh-sdk 未配 cwd 时同样继承、主会话无 cwd 则 spawn 失败）。配合 D46（prepare 起主会话必有 cwd），子代理与主 agent 同根，书级目录对子代理可直接读写。
 - D48 长章分片：整章文本超出子代理上下文预算的超长章，由主 agent 在第 3 步按异常段机制拆分并留痕，分片各派一个子代理，译文落盘 `chapters/<n>.<k>.md`，`align` 按清单组装为第 n 章；正常章一章一代理，写 `chapters/<n>.md`。
 - D49 任务注入：子代理任务仅注入该章/片文本 + 分段清单 + 逐句对齐要求；风格说明与术语表由子代理经文件工具直读书级目录文件（单一真相源，不占注入预算）。
+- D50 仓库启动：pnpm workspace（根 + `packages/itranslation/{core,tools,client}`），构建对齐 harness——`tsc -b tsconfig.host/client.json`（host/client 双聚合 + 每包 project references）+ `tsdown --env.DSH_BUILD_FACE`；版本组合对齐 harness（Node ^22.19||>=24、pnpm 11.7、TS 6、oxlint 1.76、tsdown/vitest 同 harness）。
+- D51 检查栈落地：oxlint（`.oxlintrc.json` 精简自 harness，type-aware + sonarjs/@stylistic 风格）、vitest v8 逐文件 100% 覆盖率闸（语句/分支/函数/行；types-only 文件豁免；API 桶文件须承载真实契约常量，纯 re-export 在 v8 下无可测语句）、knip + publint（`hygiene`）、jscpd（`duplication`）。
+- D52 提交钩子：lefthook——pre-commit 增量 lint（staged `--fix`+stage_fixed）+ 全量 typecheck + 空白检查；commit-msg 用 `scripts/verify-commit-msg.mjs` 校验 conventional commits；pre-push 跑 `test:coverage`；`postinstall` 自动安装钩子。
+- D53 首里程碑范围：core 确定性引擎先行（`slugify` D42、`segmentParagraphs`/`countSentences` D22/D24，零 DSH 依赖）；tools/client 为双面构建管线骨架；DSH 包依赖链入、cordis.yml/preset 组合与真实工具/UI 在后续里程碑引入。
+- D54 沙箱适配：`.npmrc` 将 pnpm 内容 store 指向仓库内 `.pnpm-store/`（gitignore），使安装在工作区写沙箱下可复现（相对 store-dir 不被 pnpm 接受，故写绝对路径，仓库迁移时需同步）。
 
 ## 二、开发规范（严格模式）
 
@@ -116,4 +121,4 @@
 - 四份文档、置于主目录、有且仅有。
 - 新设计结论进 `DESIGN.md`；新决策进本文件「决策日志」，D 序号递增。
 - 决策覆盖旧决策时：删旧写新，日志只保留现行决策。
-- README.md 与 AGENTS.md 待写，时机由用户决定。
+- `README.md`（概览/命令/里程碑）与 `AGENTS.md`（agent 守则）已随架构启动落盘（D50），随规范演进同步维护。

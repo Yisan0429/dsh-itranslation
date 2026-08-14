@@ -1,0 +1,11 @@
+packages:
+  - packages/*/*
+
+linkWorkspacePackages: true
+
+# pnpm 10+ blocks any dependency shipping an install/build script until it is
+# explicitly reviewed here. esbuild (vite/vitest native binary) and lefthook
+# (git hooks) genuinely need theirs.
+allowBuilds:
+  esbuild: true
+  lefthook: true

@@ -1,0 +1,21 @@
+{
+  // Host aggregate (one of the two check units; see tsconfig.json). Client
+  // package sources type-check inside tsconfig.client.json; both programs see
+  // every package through explicit project references.
+  "extends": "./tsconfig.base.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "rewriteRelativeImportExtensions": false
+  },
+  "include": [
+    "packages/*/*/tests/**/*.ts"
+  ],
+  "exclude": [
+    "packages/itranslation/client/tests/**"
+  ],
+  "references": [
+    { "path": "./packages/itranslation/core" },
+    { "path": "./packages/itranslation/tools" },
+    { "path": "./packages/itranslation/client" }
+  ]
+}

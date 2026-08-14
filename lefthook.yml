@@ -1,0 +1,26 @@
+# Git hooks (lefthook). Keep local checkpoints fast; CI owns the full gate
+# matrix. Installed automatically via `postinstall` (scripts/install-lefthook.mjs).
+
+pre-commit:
+  jobs:
+    - name: lint (staged)
+      glob: '*.{ts,tsx,mts,cts,mjs}'
+      run: pnpm exec oxlint --no-error-on-unmatched-pattern --fix {staged_files}
+      stage_fixed: true
+
+    - name: typecheck
+      glob: '*.{ts,tsx,mts,cts,mjs,json}'
+      run: pnpm run typecheck
+
+    - name: whitespace (staged)
+      run: git diff --cached --check
+
+commit-msg:
+  commands:
+    conventional-commits:
+      run: node scripts/verify-commit-msg.mjs {1}
+
+pre-push:
+  jobs:
+    - name: test (coverage)
+      run: pnpm run test:coverage
