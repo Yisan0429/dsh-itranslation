@@ -33,7 +33,11 @@
 - D25 LLM 过程：LLM 出现于五处——预读、统一风格、翻译、审查、修订。
 - D26 工具定位：插件工具只做确定性书级状态管理（提取/章节识别/分段/组装/格式输出/术语表/status）；预读、统一风格、翻译、审查、修订由 agent 直接调 DSH `llm` 服务与 `subagent` 工具完成，落盘由 agent 经文件工具写。
 - D27 可复现语义：可复现 = 流程可复现 + 证据链可 diff 对比，不承诺译文逐字一致。
-- D28 未验证集成点：status 读会话记录、meta.json 的耗时/token 来源并入开放问题，以运行时 Inspect 为准。
+- D28 模型覆盖（已核实）：子代理模型覆盖通道为 `SubagentStartRequest.agentOptions.{provider,model,maxTokens}`；内置 subagent 工具 schema 无 model 参数、不能每次调用动态选，翻译模型须由协调器在 spawn 时显式写入 `agentOptions.model`（或 cordis.yml `config.agentOptions.model` 固定）。
+- D29 计量（已核实）：token 用量内置（per-call 流内 `usage` chunk + 会话日志 `assistant/message.usage`）；耗时无内置、须插件自测；"过程"维度须插件自打标签；翻译过程因每章独立子代理 session 而天然 per-process 隔离。
+- D30 会话读取（已核实）：`ctx.sessions`/`ctx.sessionPersistence` 可读任意会话（含跨会话、跨进程）的完整事件流与消息（`Session.events`/`deriveMessages`），scope 只过滤事件订阅、不限制直读；`status` 读会话记录能力成立。
+- D31 workspace 根（已核实）：书级目录根 = 该会话 `SessionHeader.cwd`（逐会话，非全局唯一）；运行时经 `exec.agent.session.header.cwd` 或 `ctx.agents.get(id)?.session.header.cwd` 获取；沙箱 `workspace-write` 写边界即此根。
+- D32 slug 规则：`slug = slugify(书名)`——NFKC 规范化 → 非字母数字折叠 → 空白折叠为 `-` → 禁路径分隔符/通配符与控制字符、规避 `.`/`..` 与 Windows 保留名 → 统一小写 → 截断 ≤ 200 字符 → 同 slug 撞车追加 `-<sha256(书身份)前 8 位>`；slug 不与书名可逆绑定，原始书名与生成输入写入 `meta.json`。
 
 > 注："模式"一词为用户随口之说，不构成分类体系；一切以本日志条目为准。
 

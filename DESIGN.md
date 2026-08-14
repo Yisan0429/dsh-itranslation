@@ -221,7 +221,9 @@ Itranslation 作为 DSH 插件的核心理念只有两条：
 
 ### 5.5 书级目录（产物与证据）
 
-书级目录 `workspace/books/<slug>/`：
+书级目录 `<会话 workspace>/books/<slug>/`（会话 workspace = 该会话 `SessionHeader.cwd`，逐会话、非全局唯一；运行时经 `exec.agent.session.header.cwd` 或 `ctx.agents.get(id)?.session.header.cwd` 获取；沙箱 `workspace-write` 的写边界即此根，`books/` 落在其下可被 agent 文件工具读写）：
+
+`slug = slugify(书名)`（D32）：NFKC 规范化 → 非字母数字折叠 → 空白折叠为 `-` → 禁路径分隔符/通配符与控制字符、规避 `.`/`..` 与 Windows 保留名 → 统一小写 → 截断 ≤ 200 字符 → 同 slug 撞车追加 `-<sha256(书身份)前 8 位>`。slug 不与书名可逆绑定，原始书名与生成输入写入 `meta.json`。
 
 | 文件 | 内容 |
 |---|---|
@@ -237,7 +239,7 @@ Itranslation 作为 DSH 插件的核心理念只有两条：
 ### 5.6 子代理派发
 
 - 一章一个 `spawn` 子代理（独立上下文、不占主上下文）；任务含章节文本 + 分段清单 + 风格说明 + 术语表 + 逐句对齐要求（软对齐）；
-- 翻译模型按用户第 0 步选择，子代理模型可覆盖（模型覆盖参数以运行时 Inspect 为准）；
+- 翻译模型按用户第 0 步选择，由协调器在 spawn 时显式写入 `agentOptions.model`（覆盖通道为 `SubagentStartRequest.agentOptions.{provider,model,maxTokens}`；内置 subagent 工具 schema 无 model 参数、不能每次调用动态选，故需协调器封装，D28）；
 - 并发/分批交主 agent 自定，插件不设上限。
 
 ---
@@ -261,33 +263,29 @@ agent 在约束内自由决策，越界即被插件拦下：
 
 | 能力 | 用途 |
 |---|---|
-| `llm` 服务 / 模型路由 | 各过程模型由用户选择；预读、统一风格、审查、修订由 agent 直接调 `llm` 服务；主 agent 与子代理的模型覆盖参数实现时以 Inspect 为准 |
-| `subagents` 服务 | 一章一代理派发（preset 含 tool-subagent 行，provider: spawn） |
+| `llm` 服务 / 模型路由 | 各过程模型由用户选择；预读、统一风格、审查、修订由 agent 直接调 `llm` 服务；token 用量经流内 `usage` chunk 与会话日志 `assistant/message.usage` 获取，耗时需插件自测、过程标签自打（D29） |
+| `subagents` 服务 | 一章一代理派发（preset 含 tool-subagent 行，provider: spawn）；子代理模型经 `agentOptions.model` 覆盖（D28） |
 | `settings` 服务 | namespace `itranslation`：各过程模型默认值、体裁默认值 |
 | Client Slots | `tool.view.cordis`（Run 卡进度/成本摘要）；`settings.section`（模型默认设置页） |
 | 问题卡 | 复用 DSH 现有提问交互（ask_user_question 同款），用于三处停点 |
 | 会话持久化 | DSH 会话日志即进度记录，无需插件自建断点（D23）；中断后回到会话继续 |
-| 文件系统 | 工作区书级目录为产物与证据落点，agent 可直接 read/diff 核验 |
+| 会话读取 | `ctx.sessions`/`ctx.sessionPersistence` 可读任意会话完整事件流与消息，支撑 `status` 进度摘要（D30） |
+| 文件系统 | 书级目录落在会话 cwd 之下（沙箱 `workspace-write` 写边界），agent 可直接 read/diff 核验 |
 
 ---
 
-## 8. 格式策略与里程碑
+## 8. 格式策略
 
 **格式策略**（D21）：输入/输出格式由用户自由选择，不做硬性清单；流程统一把书转为 Markdown 供 AI 处理（原格式文件保留存档）；格式转换/还原由 agent 调用工具完成；第 8 步按第 0 步用户选择的格式输出。
 
-| 里程碑 | 内容 | 状态 |
-|---|---|---|
-| M1 | 单书闭环：九步流程、统一 Markdown 管线、证据链、原格式保留 | v1 |
-| M2 | 批量多书 | 后置 |
-| M3 | 人工校订回路 | 后置（理念支持，流程未要求） |
-
-EPUB/PDF 等具体格式的解析与回写作为格式适配层工具（TS 实现，遵守红线无 Python）随里程碑补齐，不阻塞主流程；未适配格式运行时提示暂不支持。
-
 ---
 
-## 9. 开放问题清单
+## 9. 开放问题与已核实集成点
 
-1. **子代理模型覆盖**：DSH `subagents` 的模型覆盖参数，实现时以运行时 Inspect 为准。
-2. **status 读会话记录 / meta.json 的耗时与 token 来源**：Host 插件能否读取 DSH 会话日志、能否获取分过程耗时与 token 计量，实现时以运行时 Inspect 为准；未验证前 `status` 摘要仅读书级目录文件（D28）。
+原"以 Inspect 为准"的集成点已全部核实，无未决开放问题：
 
-已定案（不在此列）：审查标准（§4，5 维度，D19）；状态文件 schema（§5.5）；分段方式（插件确定性分段 + 主 agent 调整留痕，D22）。
+1. **子代理模型覆盖** — 已核实：通道为 `SubagentStartRequest.agentOptions.{provider,model,maxTokens}`；内置 subagent 工具 schema 无 model 参数，须由协调器在 spawn 时显式写入（D28）。
+2. **分过程 token/耗时** — 已核实：token 用量内置、耗时自测、过程标签自打；翻译过程因独立子代理 session 天然 per-process（D29）。
+3. **status 读会话记录** — 已核实：`ctx.sessions`/`ctx.sessionPersistence` 可读任意会话完整事件流与消息（D30）。
+
+已定案：审查标准（§4，5 维度，D19）；书级目录与 slug 规则（§5.5，D32）；分段方式（D22）；workspace 根（D31）。字段级 schema（`state.json`/`glossary.json`/`meta.json`）随实现期以 TS 类型落地，不属设计文档范畴。
