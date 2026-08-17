@@ -31,6 +31,6 @@ pnpm run duplication    # jscpd 重复代码
 
 ## 当前里程碑
 
-- `core`:确定性引擎。已落地 `slugify`(D42)、`segmentParagraphs`/`countSentences`(D22/D24);提取、章节识别、组装待补。
+- `core`:确定性引擎。已落地 `slugify`(D42)、`segmentParagraphs`/`countSentences`(D22/D24)、`detectChapters`/`normalizeMarkdown`/`createBookState`/`assembleBook`(D56/D57);书籍先经 E2M 转 Markdown,书名 `#`、章 `##`、节 `###`;`state.json` 只记章结构,组装按原文/译文空行比对段数,失配抛错由工具层询问。
 - `tools`、`client`:构建管线骨架;DSH 包依赖链入、cordis.yml/preset 组合、真实工具与 UI 待后续里程碑。
 - 里程碑验收(D39):样本短书跑通九步冒烟并产出 `meta.json`,当场人工检查,不存档。

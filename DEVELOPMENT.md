@@ -54,6 +54,9 @@
 - D52 提交钩子：lefthook——pre-commit 增量 lint（staged `--fix`+stage_fixed）+ 全量 typecheck + 空白检查；commit-msg 用 `scripts/verify-commit-msg.mjs` 校验 conventional commits；pre-push 跑 `test:coverage`；`postinstall` 自动安装钩子。
 - D53 首里程碑范围：core 确定性引擎先行（`slugify` D42、`segmentParagraphs`/`countSentences` D22/D24，零 DSH 依赖）；tools/client 为双面构建管线骨架；DSH 包依赖链入、cordis.yml/preset 组合与真实工具/UI 在后续里程碑引入。
 - D54 沙箱适配：`.npmrc` 将 pnpm 内容 store 指向仓库内 `.pnpm-store/`（gitignore），使安装在工作区写沙箱下可复现（相对 store-dir 不被 pnpm 接受，故写绝对路径，仓库迁移时需同步）。
+- D55 core 输入格式定案：书籍先经主目录 `~/e2m-venv` 的 E2M 统一转成 Markdown 再进入插件流程；core 只处理 Markdown，段落按 Markdown 标准以空行分段（段内换行保留），`segmentParagraphs` 维持按空行分段；标题属性 `{#...}` 剥除。
+- D56 标题层级与组装失配定案：成品 Markdown 层级固定为书名 `#`、章 `##`、节 `###`；书名来自文件名（工具层传入），Markdown 中的 `#` 行按正文处理；`detectChapters` 只认 `##` 为章边界，第一个 `##` 之前的正文单独成空标题章，`###` 及更深标题保留在章正文中，无 `##` 时整本作单章；组装时书名行始终输出（空书名输出空 `#` 行），章标题固定 `##`；章数/段数失配停止组装并抛错，由工具层询问用户；句数不严格约束，子代理视情况处理。
+- D57 预读与分段职责定案：预读由一个子代理读全书并直接落盘 `style.md`/`glossary.json`；`state.json` 只记章结构（章号/标题），不存逐段清单，段信息由 Markdown 空行天然承载；翻译子代理仅注入该章 Markdown 文本，译文段间空行；组装按原文/译文空行分段比对段数；超长章或格式/分段异常停下来告诉用户，不自动分片、不静默调整。
 
 ## 二、开发规范（严格模式）
 
