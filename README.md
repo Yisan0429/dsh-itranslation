@@ -16,7 +16,7 @@
 | [DESIGN.md](./DESIGN.md) | 设计唯一依据:九步流程、审查标准、架构、约束 |
 | [DEVELOPMENT.md](./DEVELOPMENT.md) | 开发规范(严格模式)与决策日志;一切决策可追溯至此 |
 | [AGENTS.md](./AGENTS.md) | 面向在仓库内工作的 agent 的守则与命令 |
-| README.md | 本文件:项目概览与快速开始 |
+| [README.md](./README.md) | 本文件:项目概览与快速开始 |
 
 不新增第五份文档;新设计结论进 DESIGN.md,新决策进 DEVELOPMENT.md 决策日志(D 序号递增)。
 
