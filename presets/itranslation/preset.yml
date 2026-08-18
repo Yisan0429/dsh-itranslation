@@ -1,0 +1,3 @@
+name: Itranslation 整书翻译
+description: 整本书翻译生产线：E2M 转 Markdown，确定性章节识别/分段/组装，子代理逐章翻译，审查修订后出成品与证据链。
+order: 90
