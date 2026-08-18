@@ -31,9 +31,15 @@ const browserBundle = {
   outputOptions: {
     entryFileNames: 'client.js',
   },
-  banner: `window.__ModuleLoader__.load({ id: "@deepseek-ai/dsh-itranslation-client", factory: (require) => {`,
+  // The bundle body runs inside `factory(require)`; `module`/`exports` are
+  // declared in the closure so the CJS emit targets them instead of globals.
+  banner:
+    `window.__ModuleLoader__.load({ ` +
+    `id: "@deepseek-ai/dsh-itranslation-client", ` +
+    `factory: (require) => { ` +
+    `var module = { exports: {} }; ` +
+    `var exports = module.exports;`,
   footer: 'return module.exports; } });',
-  intro: 'var module = { exports: {} }; var exports = module.exports;',
 } as const
 
 /**
