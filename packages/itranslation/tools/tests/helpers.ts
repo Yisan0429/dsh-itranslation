@@ -93,6 +93,7 @@ export class MemFs {
 export interface CapturedCtx {
   ctx: Context
   registered: ToolDefinition[]
+  settingsRegistrations: Array<{ ns: unknown; schema: unknown }>
   mem: MemFs
 }
 
@@ -100,6 +101,7 @@ export interface CapturedCtx {
 export function captureCtx(cwd = '/workspace'): CapturedCtx {
   const mem = new MemFs(cwd)
   const registered: ToolDefinition[] = []
+  const settingsRegistrations: Array<{ ns: unknown; schema: unknown }> = []
   const ctx = {
     tools: {
       register: (definition: ToolDefinition): (() => void) => {
@@ -108,9 +110,26 @@ export function captureCtx(cwd = '/workspace'): CapturedCtx {
       },
     },
     fs: mem.fs,
+    inject: (deps: string[], setup: (settingsCtx: Context) => void): void => {
+      if (deps.includes('settings')) {
+        setup({
+          settings: {
+            register: (ns: unknown, schema: unknown) => {
+              settingsRegistrations.push({ ns, schema })
+              return {
+                get: () => undefined,
+                watch: () => () => {},
+                update: async () => {},
+                replace: async () => {},
+              }
+            },
+          },
+        } as unknown as Context)
+      }
+    },
   } as unknown as Context
   void cwd
-  return { ctx, registered, mem }
+  return { ctx, registered, settingsRegistrations, mem }
 }
 
 /** Find a captured tool definition by name. */

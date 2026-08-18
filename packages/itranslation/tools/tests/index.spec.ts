@@ -1,5 +1,6 @@
 import { describe, expect, it } from 'vitest'
 import { apply, Config, inject, name } from '../src/index'
+import { ITRANSLATION_SETTINGS_NAMESPACE, ItranslationSettingsSchema } from '../src/settings'
 import { captureCtx } from './helpers'
 
 describe('tools package entry', () => {
@@ -23,6 +24,15 @@ describe('tools package entry', () => {
       'itranslation.assemble',
       'itranslation_status',
     ])
+  })
+
+  it('registers the itranslation settings namespace', () => {
+    const captured = captureCtx()
+    apply(captured.ctx, {})
+    expect(captured.settingsRegistrations).toEqual([{
+      ns: ITRANSLATION_SETTINGS_NAMESPACE,
+      schema: ItranslationSettingsSchema,
+    }])
   })
 
   it('rejects a non-positive over-long threshold', () => {
