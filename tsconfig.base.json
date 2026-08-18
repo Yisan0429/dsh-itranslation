@@ -24,14 +24,9 @@
     "noUnusedLocals": true,
     "noUnusedParameters": true,
     "types": ["node"],
-    // Source-level resolution for every repo-local package. Project references,
-    // not declaration path aliases, keep each package compiled under its own
-    // tsconfig boundary. DSH peer packages (cordis, dsh-*) join here when the
-    // preset is wired into a DSH deployment (D15); remove on monorepo merge.
-    "paths": {
-      "@deepseek-ai/dsh-itranslation-core": ["./packages/itranslation/core/src"],
-      "@deepseek-ai/dsh-itranslation-tools": ["./packages/itranslation/tools/src"],
-      "@deepseek-ai/dsh-itranslation-client": ["./packages/itranslation/client/src"]
-    }
+    // Repo-local packages resolve through the pnpm workspace symlinks to their
+    // BUILT declarations (exports → lib/types), ordered by per-package project
+    // `references` (harness pattern). DSH peer packages (cordis, dsh-*) resolve
+    // through the tools package's `link:` devDependencies (D59).
   }
 }
