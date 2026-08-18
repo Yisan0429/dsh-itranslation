@@ -69,6 +69,7 @@
 - D61 client UI 定案：`@deepseek-ai/dsh-itranslation-client` 浏览器半边按真实 DSH slot 落地——Run 卡进度经 keyed `tool.call.toolview` 为六个 `itranslation.*` 工具各注册一行（从冻结 call/result 派生中文摘要，含运行中/失败/解析失败/失配/进度）；设置页经 `settings.section`（id `itranslation`）读写 `itranslation` 命名空间中的体裁默认与术语确认模式，命名空间缺失/只读/保存失败均降级为可读提示。client 包 peer 依赖以 `link:` 指向 `~/deepseek-harness` 已构建包目录（D59 同法），浏览器 bundle 用 tsdown 输出 `lib/client.js`（CJS + `window.__ModuleLoader__.load` 手写头尾，`react`/`@deepseek-ai/dsh-client-web-react` 走平台模块表 external）。
 - D62 设置命名空间注册定案：`@deepseek-ai/dsh-itranslation-tools` 在 `apply` 中经 `ctx.inject(['settings'])` 注册 `itranslation` 命名空间，schema 为 `{genre, terminologyMode}`（默认 `auto`/`auto`），与 client 设置页读取同一命名空间；无 settings provider 时注入不生效、不阻断工具注册。
 
+- D63 链入状态实录(2026-08-19 验证)：preset 目录 `~/.dsh/.agent-presets/itranslation/` 与仓库 `presets/itranslation/` 一致、已装到位;`agent.cordis.yml:227` 的 `itranslation-tools` 行以绝对路径挂载,经 Cordis loader(`tree.import` 直交 Node import)实测加载成功并注册 `itranslation.prepare/segment/glossary/align/assemble/itranslation_status` 六工具,host 工具侧链入成立(临时验证形态,D60);client 浏览器半边未进部署模块表(`__DSH_BOOT__.entries` 无 `@deepseek-ai/dsh-itranslation-client`),待部署端 link 后生效。工具名单一真相为下划线 `itranslation_status`(DESIGN/DEVELOPMENT/代码一致);README/AGENTS 的「尚未链入/待后续」表述据此修正。
 ## 二、开发规范（严格模式）
 
 ### 2.1 总则
