@@ -1,6 +1,6 @@
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { describe, expect, it, vi } from 'vitest'
-import { clientNodeEntry } from '../src/index'
+import { apply as applyHost, clientNodeEntry } from '../src/index'
 import { apply, inject, name } from '../src/client/index'
 import { ITRANSLATION_TOOL_NAMES } from '../src/client/model'
 
@@ -50,6 +50,10 @@ function runSetups(setups: Map<string, Array<() => unknown>>, slotName: string):
 describe('client package host entry', () => {
   it('exposes the node entry placeholder', () => {
     expect(clientNodeEntry).toBe('itranslation-client-node')
+  })
+
+  it('provides a no-op host apply so the Loader accepts it as an entry', () => {
+    expect(() =>{  applyHost(); }).not.toThrow()
   })
 })
 
