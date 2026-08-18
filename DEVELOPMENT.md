@@ -64,6 +64,10 @@
 - D59 DSH 包依赖链入定案：tools 包对 DSH 运行时契约用 `peerDependencies`（`@deepseek-ai/cordis`/`@deepseek-ai/schemastery`/`@deepseek-ai/dsh-tools`/`@deepseek-ai/dsh-fs`，tsdown 据此外部化不打包），本地构建/测试用 `devDependencies` 的 `link:` 协议指向 `~/deepseek-harness` 已构建包目录（相对路径 `../../../../deepseek-harness/...`，只读引用不改 harness，红线 1/2；symlink 目标自身的 `node_modules` 承接其传递依赖解析）；`@deepseek-ai/dsh-itranslation-core` 以 `workspace:^` 链入。挂载验证脚本所需的 harness 启动栈（cordis-plugin-loader/include、dsh-llm/session/system-prompt/tools/agent/agent-loop/agent-presets/scope）同法在仓库根 `link:` 引入，仅用于本地验证脚本，不进入交付包。
 - D60 preset 组合定案：preset 目录 `~/.dsh/.agent-presets/itranslation/`，含 `agent.cordis.yml`+`preset.yml`（§2.3）。基线为 shipped `standard` 副本裁剪：保留 persona/agent-instructions/tool-bash/tool-fs(+search)/tool-jobs/tool-skill/tool-ask-user/tool-todo/plan-mode/compaction/delegation（tool-subagent spawn+fork）；新增 `itranslation-tools` 行（仅注册工具、不发布服务、无需 realm）；翻译子代理模型按 D33 用部署默认，不硬编码 `agentOptions.model`（避免环境绑定），在注释中标注可按 D28 通道固定。本地链入以 `name:` 绝对路径行挂载（`lib/index.js`，README「绝对路径转 file: URL」规则）临时验证，发布后改包名+link/file: 依赖（D15/§2.6）。超长章阈值 `overlongThresholdBytes` 默认 40000，可由 preset `config` 覆盖。
 
+### 2026-08-19
+
+- D61 client UI 定案：`@deepseek-ai/dsh-itranslation-client` 浏览器半边按真实 DSH slot 落地——Run 卡进度经 keyed `tool.call.toolview` 为六个 `itranslation.*` 工具各注册一行（从冻结 call/result 派生中文摘要，含运行中/失败/解析失败/失配/进度）；设置页经 `settings.section`（id `itranslation`）读写 `itranslation` 命名空间中的体裁默认与术语确认模式，命名空间缺失/只读/保存失败均降级为可读提示。client 包 peer 依赖以 `link:` 指向 `~/deepseek-harness` 已构建包目录（D59 同法），浏览器 bundle 用 tsdown 输出 `lib/client.js`（CJS + `window.__ModuleLoader__.load` 手写头尾，`react`/`@deepseek-ai/dsh-client-web-react` 走平台模块表 external）。
+
 ## 二、开发规范（严格模式）
 
 ### 2.1 总则

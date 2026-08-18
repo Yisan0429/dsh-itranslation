@@ -21,6 +21,10 @@
   },
   "dsh": {
     "client": {
+      "inject": [
+        "@deepseek-ai/dsh-client-ui-tool",
+        "@deepseek-ai/dsh-client-ui-settings"
+      ],
       "platform": "web"
     }
   },
@@ -30,5 +34,27 @@
     "lib/types/**/*.js",
     "lib/types/**/*.d.ts"
   ],
-  "license": "MIT"
+  "license": "MIT",
+  "peerDependencies": {
+    "@deepseek-ai/cordis": "*",
+    "@deepseek-ai/dsh-client-runtime": "*",
+    "@deepseek-ai/dsh-client-ui-settings": "*",
+    "@deepseek-ai/dsh-client-ui-slots": "*",
+    "@deepseek-ai/dsh-client-ui-tool": "*",
+    "@deepseek-ai/dsh-client-web-react": "*",
+    "react": "^18.2.0"
+  },
+  "devDependencies": {
+    "@deepseek-ai/cordis": "link:../../../../deepseek-harness/vendor/cordis",
+    "@deepseek-ai/dsh-api-remotes": "link:../../../../deepseek-harness/packages/api/remotes",
+    "@deepseek-ai/dsh-client-runtime": "link:../../../../deepseek-harness/packages/client/runtime",
+    "@deepseek-ai/dsh-client-ui-settings": "link:../../../../deepseek-harness/packages/client/ui-settings",
+    "@deepseek-ai/dsh-client-ui-slots": "link:../../../../deepseek-harness/packages/client/ui-slots",
+    "@deepseek-ai/dsh-client-ui-tool": "link:../../../../deepseek-harness/packages/client/ui-tool",
+    "@deepseek-ai/dsh-client-web-react": "link:../../../../deepseek-harness/packages/client/web-react",
+    "@types/react": "link:../../../../deepseek-harness/node_modules/.pnpm/@types+react@18.3.31/node_modules/@types/react",
+    "@types/react-dom": "link:../../../../deepseek-harness/node_modules/.pnpm/@types+react-dom@18.3.7_@types+react@18.3.31/node_modules/@types/react-dom",
+    "react": "link:../../../../deepseek-harness/node_modules/.pnpm/react@18.3.1/node_modules/react",
+    "react-dom": "link:../../../../deepseek-harness/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom"
+  }
 }
