@@ -11,17 +11,19 @@ import { createObservable } from './observable'
 /** Settings namespace owned by the itranslation preset (DESIGN.md §7). */
 export const ITRANSLATION_SETTINGS_NAMESPACE = 'itranslation'
 
-type TerminologyMode = 'auto' | 'manual'
-
-/** Genre/terminology defaults offered by the step-0 confirmation card. */
+/** The four LLM prompt templates edited from the settings page. */
 export interface ItranslationSettingsValue {
-  genre: string
-  terminologyMode: TerminologyMode
+  preReadPrompt: string
+  translatePrompt: string
+  auditPrompt: string
+  revisePrompt: string
 }
 
 export const DEFAULT_ITRANSLATION_SETTINGS: ItranslationSettingsValue = {
-  genre: 'auto',
-  terminologyMode: 'auto',
+  preReadPrompt: '',
+  translatePrompt: '',
+  auditPrompt: '',
+  revisePrompt: '',
 }
 
 /** Section snapshot: load state, write gate, resolved value and save errors. */
@@ -47,12 +49,8 @@ function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function readGenre(value: unknown): string {
-  return typeof value === 'string' && value.length > 0 ? value : DEFAULT_ITRANSLATION_SETTINGS.genre
-}
-
-function readTerminologyMode(value: unknown): TerminologyMode {
-  return value === 'manual' ? 'manual' : 'auto'
+function readPrompt(value: unknown, fallback: string): string {
+  return typeof value === 'string' ? value : fallback
 }
 
 /**
@@ -62,8 +60,10 @@ function readTerminologyMode(value: unknown): TerminologyMode {
 export function readSettingsValue(value: unknown): ItranslationSettingsValue {
   const root = isRecord(value) ? value : {}
   return {
-    genre: readGenre(root.genre),
-    terminologyMode: readTerminologyMode(root.terminologyMode),
+    preReadPrompt: readPrompt(root.preReadPrompt, DEFAULT_ITRANSLATION_SETTINGS.preReadPrompt),
+    translatePrompt: readPrompt(root.translatePrompt, DEFAULT_ITRANSLATION_SETTINGS.translatePrompt),
+    auditPrompt: readPrompt(root.auditPrompt, DEFAULT_ITRANSLATION_SETTINGS.auditPrompt),
+    revisePrompt: readPrompt(root.revisePrompt, DEFAULT_ITRANSLATION_SETTINGS.revisePrompt),
   }
 }
 
@@ -180,14 +180,24 @@ export class ItranslationSettingsController {
     await this.load()
   }
 
-  readonly setGenre = (event: ChangeEvent<HTMLInputElement>): void => {
+  readonly setPreReadPrompt = (event: ChangeEvent<HTMLTextAreaElement>): void => {
     const value = this.store.getSnapshot().value
-    this.patchValue({ ...value, genre: event.target.value })
+    this.patchValue({ ...value, preReadPrompt: event.target.value })
   }
 
-  readonly setTerminologyMode = (event: ChangeEvent<HTMLSelectElement>): void => {
+  readonly setTranslatePrompt = (event: ChangeEvent<HTMLTextAreaElement>): void => {
     const value = this.store.getSnapshot().value
-    this.patchValue({ ...value, terminologyMode: readTerminologyMode(event.target.value) })
+    this.patchValue({ ...value, translatePrompt: event.target.value })
+  }
+
+  readonly setAuditPrompt = (event: ChangeEvent<HTMLTextAreaElement>): void => {
+    const value = this.store.getSnapshot().value
+    this.patchValue({ ...value, auditPrompt: event.target.value })
+  }
+
+  readonly setRevisePrompt = (event: ChangeEvent<HTMLTextAreaElement>): void => {
+    const value = this.store.getSnapshot().value
+    this.patchValue({ ...value, revisePrompt: event.target.value })
   }
 
   readonly save = (): void => { void this.persist() }

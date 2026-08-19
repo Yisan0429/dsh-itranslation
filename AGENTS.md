@@ -33,5 +33,5 @@ pnpm run duplication    # jscpd 重复代码
 
 - `core`:确定性引擎。已落地 `slugify`(D42)、`segmentParagraphs`/`countSentences`(D22/D24)、`detectChapters`/`normalizeMarkdown`/`createBookState`/`assembleBook`(D56/D57);书籍先经 E2M 转 Markdown,书名 `#`、章 `##`、节 `###`;`state.json` 只记章结构,组装按原文/译文空行比对段数,失配抛错由工具层询问。
 - `tools`:六个确定性工具(`itranslation.prepare/segment/glossary/align/assemble/itranslation_status`)与书级状态文件已落地(D58)。
-- `client`:Run 卡进度(keyed `tool.call.toolview`×6)与设置页(`settings.section` id `itranslation`)已落地(D61);DSH 部署链入完成——host 六工具经 preset 挂载、client 浏览器半边经部署端 file: 依赖 + cordis patch insert 进入模块表(D63/D64)。
+- `client`:Run 卡进度(keyed `tool.call.toolview`×6)与提示词设置页(`settings.section` id `itranslation`,四个 LLM 提示词文本框)已落地(D61);DSH 部署链入完成——host 六工具经 preset 挂载、client 浏览器半边经部署端 file: 依赖 + cordis patch insert 进入模块表(D63/D64)。
 - 里程碑验收(D39):样本短书跑通九步冒烟并产出 `meta.json`,当场人工检查,不存档。

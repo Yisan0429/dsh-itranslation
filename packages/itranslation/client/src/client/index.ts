@@ -2,7 +2,7 @@
  * Browser bundle entry of the itranslation client UI package (DESIGN.md §7).
  * It registers one keyed toolview per deterministic `itranslation.*` tool
  * (the Run card progress surface) and one `settings.section` page for the
- * step-0 genre/terminology defaults.
+ * four LLM prompt templates (pre-reading, translation, audit, revision).
  */
 
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
@@ -46,8 +46,10 @@ export function apply(ctx: ClientContext): void {
   const injected = {
     useSnapshot: bindSnapshotSelector(controller.store),
     load: controller.load,
-    setGenre: controller.setGenre,
-    setTerminologyMode: controller.setTerminologyMode,
+    setPreReadPrompt: controller.setPreReadPrompt,
+    setTranslatePrompt: controller.setTranslatePrompt,
+    setAuditPrompt: controller.setAuditPrompt,
+    setRevisePrompt: controller.setRevisePrompt,
     save: controller.save,
   }
 

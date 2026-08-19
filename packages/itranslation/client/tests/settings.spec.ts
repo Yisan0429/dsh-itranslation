@@ -13,6 +13,13 @@ import {
 } from '../src/client/settings-store'
 import { ItranslationSettingsSection } from '../src/client/settings-section'
 
+const PROMPTS = {
+  preReadPrompt: 'pre-read prompt',
+  translatePrompt: 'translate prompt',
+  auditPrompt: 'audit prompt',
+  revisePrompt: 'revise prompt',
+}
+
 function createApi() {
   const describe = vi.fn()
   const update = vi.fn()
@@ -33,7 +40,7 @@ function describeError(message: string) {
 }
 
 function updateOk() {
-  return { result: { ok: true, value: namespace({ genre: 'fiction', terminologyMode: 'auto' }) } } as never
+  return { result: { ok: true, value: namespace(PROMPTS) } } as never
 }
 
 function updateError(message: string) {
@@ -42,17 +49,12 @@ function updateError(message: string) {
 
 describe('settings helpers', () => {
   it('reads values with field-by-field defaults', () => {
-    expect(readSettingsValue({ genre: 'fiction', terminologyMode: 'manual' })).toEqual({
-      genre: 'fiction', terminologyMode: 'manual',
-    })
-    expect(readSettingsValue({ genre: '', terminologyMode: 'auto' })).toEqual(DEFAULT_ITRANSLATION_SETTINGS)
+    expect(readSettingsValue(PROMPTS)).toEqual(PROMPTS)
+    expect(readSettingsValue({ preReadPrompt: '', translatePrompt: '', auditPrompt: '', revisePrompt: '' })).toEqual(DEFAULT_ITRANSLATION_SETTINGS)
     expect(readSettingsValue(null)).toEqual(DEFAULT_ITRANSLATION_SETTINGS)
-    expect(readSettingsValue({ genre: 7, terminologyMode: 'x' })).toEqual(DEFAULT_ITRANSLATION_SETTINGS)
-  })
-
-  it('reads manual and non-manual terminology modes', () => {
-    expect(readSettingsValue({ terminologyMode: 'manual' }).terminologyMode).toBe('manual')
-    expect(readSettingsValue({ terminologyMode: 'auto' }).terminologyMode).toBe('auto')
+    expect(readSettingsValue({
+      preReadPrompt: 7, translatePrompt: {}, auditPrompt: 1, revisePrompt: false,
+    })).toEqual(DEFAULT_ITRANSLATION_SETTINGS)
   })
 
   it('formats Error and non-Error messages', () => {
@@ -81,12 +83,12 @@ describe('ItranslationSettingsController', () => {
 
   it('loads a present namespace', async () => {
     const { api, describe } = createApi()
-    describe.mockResolvedValue(describeOk(true, [namespace({ genre: 'technical', terminologyMode: 'manual' }, 9)]))
+    describe.mockResolvedValue(describeOk(true, [namespace(PROMPTS, 9)]))
     const controller = new ItranslationSettingsController(api)
     await controller.load()
     expect(controller.store.getSnapshot()).toMatchObject({
       status: 'ready', writable: true, missing: false, revision: 9,
-      value: { genre: 'technical', terminologyMode: 'manual' },
+      value: PROMPTS,
     })
   })
 
@@ -131,7 +133,7 @@ describe('ItranslationSettingsController', () => {
 
   it('records business save failures', async () => {
     const { api, describe, update } = createApi()
-    describe.mockResolvedValue(describeOk(true, [namespace({ genre: 'fiction', terminologyMode: 'auto' }, 3)]))
+    describe.mockResolvedValue(describeOk(true, [namespace(PROMPTS, 3)]))
     update.mockResolvedValue(updateError('conflict'))
     const controller = new ItranslationSettingsController(api)
     await controller.load()
@@ -142,7 +144,7 @@ describe('ItranslationSettingsController', () => {
 
   it('records transport save failures', async () => {
     const { api, describe, update } = createApi()
-    describe.mockResolvedValue(describeOk(true, [namespace({ genre: 'fiction', terminologyMode: 'auto' }, 3)]))
+    describe.mockResolvedValue(describeOk(true, [namespace(PROMPTS, 3)]))
     update.mockRejectedValue(new Error('offline'))
     const controller = new ItranslationSettingsController(api)
     await controller.load()
@@ -153,7 +155,7 @@ describe('ItranslationSettingsController', () => {
 
   it('saves and reloads on success', async () => {
     const { api, describe, update } = createApi()
-    describe.mockResolvedValue(describeOk(true, [namespace({ genre: 'fiction', terminologyMode: 'auto' }, 3)]))
+    describe.mockResolvedValue(describeOk(true, [namespace(PROMPTS, 3)]))
     update.mockResolvedValue(updateOk())
     const controller = new ItranslationSettingsController(api)
     await controller.load()
@@ -161,10 +163,10 @@ describe('ItranslationSettingsController', () => {
     await vi.waitFor(() => { expect(controller.store.getSnapshot().status).toBe('ready') })
     expect(update).toHaveBeenCalledWith({
       ns: ITRANSLATION_SETTINGS_NAMESPACE,
-      patch: { genre: 'fiction', terminologyMode: 'auto' },
+      patch: PROMPTS,
       expectedRevision: 3,
     })
-    expect(controller.store.getSnapshot().value).toEqual({ genre: 'fiction', terminologyMode: 'auto' })
+    expect(controller.store.getSnapshot().value).toEqual(PROMPTS)
   })
 
   it('saves without an expected revision when none was read', async () => {
@@ -179,7 +181,7 @@ describe('ItranslationSettingsController', () => {
     await vi.waitFor(() => { expect(controller.store.getSnapshot().status).toBe('ready') })
     expect(update).toHaveBeenCalledWith({
       ns: ITRANSLATION_SETTINGS_NAMESPACE,
-      patch: { genre: 'auto', terminologyMode: 'auto' },
+      patch: DEFAULT_ITRANSLATION_SETTINGS,
     })
     expect(controller.store.getSnapshot().error).toBe('no revision')
   })
@@ -188,12 +190,14 @@ describe('ItranslationSettingsController', () => {
     const { api } = createApi()
     const controller = new ItranslationSettingsController(api)
     controller.store.set({ ...controller.store.getSnapshot(), status: 'ready', writable: true })
-    controller.setGenre({ target: { value: 'children' } } as never)
-    expect(controller.store.getSnapshot().value.genre).toBe('children')
-    controller.setTerminologyMode({ target: { value: 'manual' } } as never)
-    expect(controller.store.getSnapshot().value.terminologyMode).toBe('manual')
-    controller.setTerminologyMode({ target: { value: 'auto' } } as never)
-    expect(controller.store.getSnapshot().value.terminologyMode).toBe('auto')
+    controller.setPreReadPrompt({ target: { value: 'p1' } } as never)
+    expect(controller.store.getSnapshot().value.preReadPrompt).toBe('p1')
+    controller.setTranslatePrompt({ target: { value: 'p2' } } as never)
+    expect(controller.store.getSnapshot().value.translatePrompt).toBe('p2')
+    controller.setAuditPrompt({ target: { value: 'p3' } } as never)
+    expect(controller.store.getSnapshot().value.auditPrompt).toBe('p3')
+    controller.setRevisePrompt({ target: { value: 'p4' } } as never)
+    expect(controller.store.getSnapshot().value.revisePrompt).toBe('p4')
   })
 })
 
@@ -207,8 +211,10 @@ describe('ItranslationSettingsSection', () => {
     const props = {
       useSnapshot,
       load,
-      setGenre: vi.fn(),
-      setTerminologyMode: vi.fn(),
+      setPreReadPrompt: vi.fn(),
+      setTranslatePrompt: vi.fn(),
+      setAuditPrompt: vi.fn(),
+      setRevisePrompt: vi.fn(),
       save: vi.fn(),
       close: () => {},
     }
@@ -225,7 +231,7 @@ describe('ItranslationSettingsSection', () => {
       status: 'idle', error: null, writable: false, missing: false, value: DEFAULT_ITRANSLATION_SETTINGS,
     })
     expect(load).toHaveBeenCalledOnce()
-    expect(html).toContain('The step-0 confirmation card starts with these defaults.')
+    expect(html).toContain('Prompt templates used by the agent')
   })
 
   it('renders the loading state', () => {
@@ -241,12 +247,13 @@ describe('ItranslationSettingsSection', () => {
   it('renders a ready editable form', () => {
     const { html } = renderWith({
       status: 'ready', error: null, writable: true, missing: false,
-      value: { genre: 'fiction', terminologyMode: 'manual' }, revision: 3,
+      value: PROMPTS, revision: 3,
     })
-    expect(html).toContain('Default genre')
-    expect(html).toContain('Terminology mode')
-    expect(html).toContain('Save defaults')
-    expect(html).toContain('Auto')
+    expect(html).toContain('Pre-reading prompt')
+    expect(html).toContain('Translation prompt')
+    expect(html).toContain('Audit prompt')
+    expect(html).toContain('Revision prompt')
+    expect(html).toContain('Save prompts')
     expect(html).not.toContain('The itranslation settings namespace was not detected')
   })
 
