@@ -1,15 +1,14 @@
+// @vitest-environment jsdom
 import { createElement } from 'react'
 import { renderToStaticMarkup } from 'react-dom/server'
 import { describe, expect, it, vi } from 'vitest'
 import {
   DEFAULT_ITRANSLATION_SETTINGS,
   ITRANSLATION_SETTINGS_NAMESPACE,
-  isSettingsApi,
   ItranslationSettingsController,
   messageOf,
   readSettingsValue,
   type ItranslationSettingsState,
-  type SettingsApi,
 } from '../src/client/settings-store'
 import { ItranslationSettingsSection } from '../src/client/settings-section'
 
@@ -23,7 +22,7 @@ const PROMPTS = {
 function createApi() {
   const describe = vi.fn()
   const update = vi.fn()
-  const api = { settings: { describe, update } } as unknown as SettingsApi
+  const api = { settings: { describe, update } }
   return { api, describe, update }
 }
 
@@ -62,14 +61,7 @@ describe('settings helpers', () => {
     expect(messageOf('plain')).toBe('plain')
   })
 
-  it('narrows settings API values', () => {
-    expect(isSettingsApi(null)).toBe(false)
-    expect(isSettingsApi('x')).toBe(false)
-    expect(isSettingsApi({})).toBe(false)
-    expect(isSettingsApi({ settings: null })).toBe(false)
-    expect(isSettingsApi({ settings: {} })).toBe(false)
-    expect(isSettingsApi({ settings: { describe: vi.fn(), update: vi.fn() } })).toBe(true)
-  })
+
 })
 
 describe('ItranslationSettingsController', () => {
@@ -190,13 +182,13 @@ describe('ItranslationSettingsController', () => {
     const { api } = createApi()
     const controller = new ItranslationSettingsController(api)
     controller.store.set({ ...controller.store.getSnapshot(), status: 'ready', writable: true })
-    controller.setPreReadPrompt({ target: { value: 'p1' } } as never)
+    controller.setPreReadPrompt('p1')
     expect(controller.store.getSnapshot().value.preReadPrompt).toBe('p1')
-    controller.setTranslatePrompt({ target: { value: 'p2' } } as never)
+    controller.setTranslatePrompt('p2')
     expect(controller.store.getSnapshot().value.translatePrompt).toBe('p2')
-    controller.setAuditPrompt({ target: { value: 'p3' } } as never)
+    controller.setAuditPrompt('p3')
     expect(controller.store.getSnapshot().value.auditPrompt).toBe('p3')
-    controller.setRevisePrompt({ target: { value: 'p4' } } as never)
+    controller.setRevisePrompt('p4')
     expect(controller.store.getSnapshot().value.revisePrompt).toBe('p4')
   })
 })
@@ -206,24 +198,26 @@ describe('ItranslationSettingsSection', () => {
     const { api } = createApi()
     const controller = new ItranslationSettingsController(api)
     controller.store.set({ ...state, revision: state.revision })
-    const load = vi.fn(async () => {})
+    const load = vi.spyOn(controller, 'load').mockResolvedValue(undefined)
     const useSnapshot = (selector: (snapshot: ItranslationSettingsState) => unknown) => selector(controller.store.getSnapshot())
+    const en = {
+      nav: 'Itranslation', intro: 'Prompt templates used by the agent for each LLM step. Leave blank to use no extra prompt.',
+      preRead: 'Pre-reading prompt', translate: 'Translation prompt', audit: 'Audit prompt', revise: 'Revision prompt',
+      save: 'Save prompts', saving: 'Saving…', loading: 'Loading Itranslation settings…',
+      failed: 'Failed to load:', missing: 'The itranslation settings namespace was not detected; saving is unavailable.',
+    }
+    const t = vi.fn((key: keyof typeof en) => en[key])
     const props = {
+      controller,
       useSnapshot,
-      load,
-      setPreReadPrompt: vi.fn(),
-      setTranslatePrompt: vi.fn(),
-      setAuditPrompt: vi.fn(),
-      setRevisePrompt: vi.fn(),
-      save: vi.fn(),
-      close: () => {},
+      t,
     }
     const html = renderToStaticMarkup(createElement(ItranslationSettingsSection, props as never))
     return { html, load }
   }
 
   it('renders null before injection', () => {
-    expect(ItranslationSettingsSection({} as never)).toBeNull()
+    expect(ItranslationSettingsSection({})).toBeNull()
   })
 
   it('renders the form for idle state and triggers load', () => {

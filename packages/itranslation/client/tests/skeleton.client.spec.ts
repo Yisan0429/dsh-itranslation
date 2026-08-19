@@ -1,3 +1,4 @@
+// @vitest-environment jsdom
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { describe, expect, it, vi } from 'vitest'
 import { apply as applyHost, clientNodeEntry } from '../src/index'
@@ -10,7 +11,7 @@ interface Registration {
     key?: string
     id?: string
     order?: number
-    label?: string
+    label?: string | (() => string)
     inject?: () => unknown
   }
   component: unknown
@@ -30,10 +31,22 @@ function createContext() {
       return vi.fn()
     },
   }
+  const en = {
+    nav: 'Itranslation', intro: 'intro', preRead: 'Pre-reading prompt',
+    translate: 'Translation prompt', audit: 'Audit prompt', revise: 'Revision prompt',
+    save: 'Save prompts', saving: 'Saving…', loading: 'Loading Itranslation settings…',
+    failed: 'Failed to load:', missing: 'missing',
+  }
+  const t = vi.fn((key: keyof typeof en) => en[key])
+  const locale = { register: vi.fn(), bind: vi.fn(() => t) }
   const api = { settings: { describe: vi.fn(), update: vi.fn() } }
   const get = vi.fn((_service: string) => ({ api }))
-  const ctx = { slots, get } as unknown as ClientContext
-  return { ctx, setups, registrations, api, get }
+  const on = vi.fn(() => vi.fn())
+  const ctx = {
+    slots, locale, get, on,
+    effect: (setup: () => unknown) => { setup(); return vi.fn() },
+  } as unknown as ClientContext
+  return { ctx, setups, registrations, api, get, locale }
 }
 
 function runSetups(setups: Map<string, Array<() => unknown>>, slotName: string): void {
@@ -60,7 +73,7 @@ describe('client package host entry', () => {
 describe('client browser plugin', () => {
   it('declares its identity and services', () => {
     expect(name).toBe('itranslation-client')
-    expect(inject).toEqual(['slots', 'connection'])
+    expect(inject).toEqual(['slots', 'locale', 'connection'])
   })
 
   it('registers one toolview per deterministic tool', () => {
@@ -71,38 +84,25 @@ describe('client browser plugin', () => {
     expect(toolRows.map(row => row.options.key)).toEqual([...ITRANSLATION_TOOL_NAMES])
   })
 
-  it('refuses to apply without a connection service', () => {
-    const { ctx, get } = createContext()
-    get.mockReturnValue(undefined as never)
-    expect(() => { apply(ctx) }).toThrow('itranslation-client: connection.settings service is unavailable')
-  })
-
-  it('refuses to apply with a non-settings connection api', () => {
-    const { ctx, get } = createContext()
-    get.mockReturnValue({ api: null } as never)
-    expect(() => { apply(ctx) }).toThrow('itranslation-client: connection.settings service is unavailable')
-  })
-
   it('registers the settings section with a working inject face', () => {
-    const { ctx, setups, registrations, api, get } = createContext()
+    const { ctx, setups, registrations, get, locale } = createContext()
     apply(ctx)
     runSetups(setups, 'settings.section')
     const section = registrations.find(registration => registration.options.name === 'settings.section')
     expect(section?.options).toMatchObject({
       id: 'itranslation',
       order: 30,
-      label: 'Itranslation',
     })
+    const label = section?.options.label
+    expect(typeof label).toBe('function')
+    expect((label as () => string)()).toBe('Itranslation')
     const injectFace = section?.options.inject?.() as Record<string, unknown> | undefined
     expect(injectFace).toBeDefined()
-    expect(typeof injectFace?.load).toBe('function')
-    expect(typeof injectFace?.save).toBe('function')
-    expect(typeof injectFace?.setPreReadPrompt).toBe('function')
-    expect(typeof injectFace?.setTranslatePrompt).toBe('function')
-    expect(typeof injectFace?.setAuditPrompt).toBe('function')
-    expect(typeof injectFace?.setRevisePrompt).toBe('function')
+    expect(typeof injectFace?.controller).toBe('object')
     expect(typeof injectFace?.useSnapshot).toBe('function')
+    expect(typeof injectFace?.t).toBe('function')
     expect(get).toHaveBeenCalledWith('connection')
-    expect(api.settings.describe).toBeDefined()
+    expect(locale.register).toHaveBeenCalled()
+    expect(locale.bind).toHaveBeenCalled()
   })
 })

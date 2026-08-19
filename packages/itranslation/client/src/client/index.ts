@@ -1,32 +1,41 @@
 /**
  * Browser bundle entry of the itranslation client UI package (DESIGN.md §7).
  * It registers one keyed toolview per deterministic `itranslation.*` tool
- * (the Run card progress surface) and one `settings.section` page for the
- * four LLM prompt templates (pre-reading, translation, audit, revision).
+ * (the Run card progress surface) and the settings page for the four LLM
+ * prompt templates. Mirrors the harness `ui-settings-models` registration
+ * shape: locale dictionaries, `settings.section` slot injection, and an
+ * inject face carrying controller/useSnapshot/t.
  */
 
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
+import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
 // Type-only: pulls the keyed `tool.call.toolview` SlotMap declaration.
 import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
 // Type-only: pulls the `settings.section` SlotMap declaration.
 import type {} from '@deepseek-ai/dsh-client-ui-settings/client'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
+// Type-only: pulls the locale plugin's Context merge (ctx.locale).
+import type {} from '@deepseek-ai/dsh-client-locale/client'
 import { ITRANSLATION_TOOL_NAMES } from './model'
-import { isSettingsApi, ItranslationSettingsController, type SettingsApi } from './settings-store'
+import { ItranslationSettingsController, type ItranslationSettingsApi } from './settings-store'
+import type { ItranslationSettingsInjected } from './settings-section'
 import { ItranslationSettingsSection } from './settings-section'
+import { en, type SettingsKey } from './settings-locales'
 import { ItranslationToolView } from './tool-view'
 
 /** Cordis plugin name used by loader diagnostics. */
 export const name = 'itranslation-client'
 
-/** Services this plugin hard-depends on: slot registry + connection wire. */
-export const inject = ['slots', 'connection']
+/** Services this plugin hard-depends on. */
+export const inject = ['slots', 'locale', 'connection']
 
-/** Extract the settings API slice from a connection service value. */
-function connectionSettings(value: unknown): SettingsApi | null {
-  if (typeof value !== 'object' || value === null || !('api' in value)) return null
-  const api = value.api
-  return isSettingsApi(api) ? api : null
+/** Dictionary namespace owned by this plugin. */
+const NS = 'settings.itranslation'
+
+declare module '@deepseek-ai/dsh-client-ui-slots' {
+  interface LocaleNamespaceMap {
+    /** The itranslation settings page copy. */
+    'settings.itranslation': SettingsKey
+  }
 }
 
 /**
@@ -34,30 +43,33 @@ function connectionSettings(value: unknown): SettingsApi | null {
  * @param ctx - browser plugin context.
  */
 export function apply(ctx: ClientContext): void {
+  ctx.effect(() => ctx.locale.register(NS, { en, zh: en }), 'itranslation-client: dictionaries')
+
   ctx.slots.inject('tool.call.toolview', function* () {
     for (const toolName of ITRANSLATION_TOOL_NAMES) {
       yield ctx.slots.register({ name: 'tool.call.toolview', key: toolName }, ItranslationToolView)
     }
   })
 
-  const api = connectionSettings(ctx.get('connection'))
-  if (api === null) throw new Error('itranslation-client: connection.settings service is unavailable')
-  const controller = new ItranslationSettingsController(api)
-  const injected = {
-    useSnapshot: bindSnapshotSelector(controller.store),
-    load: controller.load,
-    setPreReadPrompt: controller.setPreReadPrompt,
-    setTranslatePrompt: controller.setTranslatePrompt,
-    setAuditPrompt: controller.setAuditPrompt,
-    setRevisePrompt: controller.setRevisePrompt,
-    save: controller.save,
-  }
+  const connection = ctx.get('connection') as { api: ItranslationSettingsApi }
+  const controller = new ItranslationSettingsController(connection.api)
+  const useSnapshot = bindSnapshotSelector(controller.store)
+  const t = ctx.locale.bind(NS) as ItranslationSettingsInjected['t']
+  const injected = (): ItranslationSettingsInjected => ({
+    controller,
+    useSnapshot,
+    t,
+  })
+
+  ctx.effect(() => ctx.on('connection/reset', () => {
+    if (controller.store.getSnapshot().status !== 'idle') void controller.load()
+  }), 'itranslation-client: settings refresh on connection reset')
 
   ctx.slots.inject('settings.section', () => ctx.slots.register({
     name: 'settings.section',
     id: 'itranslation',
     order: 30,
-    label: 'Itranslation',
-    inject: () => injected,
+    label: () => t('nav'),
+    inject: injected,
   }, ItranslationSettingsSection))
 }

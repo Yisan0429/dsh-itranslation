@@ -34,6 +34,7 @@
     "@vitest/coverage-v8": "^4.1.8",
     "eslint-plugin-sonarjs": "^4.1.0",
     "jscpd": "^5.0.12",
+    "jsdom": "link:../deepseek-harness/node_modules/jsdom",
     "knip": "^6.16.1",
     "lefthook": "^2.1.9",
     "oxlint": "1.76.0",

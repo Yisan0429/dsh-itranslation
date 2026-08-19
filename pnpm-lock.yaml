@@ -23,6 +23,9 @@ importers:
       jscpd:
         specifier: ^5.0.12
         version: 5.0.15
+      jsdom:
+        specifier: link:../deepseek-harness/node_modules/jsdom
+        version: link:../deepseek-harness/node_modules/jsdom
       knip:
         specifier: ^6.16.1
         version: 6.32.2
@@ -46,7 +49,7 @@ importers:
         version: 6.0.3
       vitest:
         specifier: ^4.1.8
-        version: 4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
+        version: 4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(jsdom@deepseek-harness+node_modules+jsdom)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
 
   packages/itranslation/client:
     devDependencies:
@@ -56,6 +59,9 @@ importers:
       '@deepseek-ai/dsh-api-remotes':
         specifier: link:../../../../deepseek-harness/packages/api/remotes
         version: link:../../../../deepseek-harness/packages/api/remotes
+      '@deepseek-ai/dsh-client-locale':
+        specifier: link:../../../../deepseek-harness/packages/client/locale
+        version: link:../../../../deepseek-harness/packages/client/locale
       '@deepseek-ai/dsh-client-runtime':
         specifier: link:../../../../deepseek-harness/packages/client/runtime
         version: link:../../../../deepseek-harness/packages/client/runtime
@@ -2353,7 +2359,7 @@ snapshots:
       obug: 2.1.4
       std-env: 4.2.0
       tinyrainbow: 3.1.1
-      vitest: 4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
+      vitest: 4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(jsdom@deepseek-harness+node_modules+jsdom)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
 
   '@vitest/expect@4.1.10':
     dependencies:
@@ -3221,7 +3227,7 @@ snapshots:
       tsx: 4.23.12
       yaml: 2.9.0
 
-  vitest@4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)):
+  vitest@4.1.10(@types/node@22.20.1)(@vitest/coverage-v8@4.1.10)(jsdom@deepseek-harness+node_modules+jsdom)(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0)):
     dependencies:
       '@vitest/expect': 4.1.10
       '@vitest/mocker': 4.1.10(vite@8.2.1(@types/node@22.20.1)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.12)(yaml@2.9.0))
@@ -3246,6 +3252,7 @@ snapshots:
     optionalDependencies:
       '@types/node': 22.20.1
       '@vitest/coverage-v8': 4.1.10(vitest@4.1.10)
+      jsdom: link:../deepseek-harness/node_modules/jsdom
     transitivePeerDependencies:
       - msw
 

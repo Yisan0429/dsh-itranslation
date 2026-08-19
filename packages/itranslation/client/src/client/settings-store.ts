@@ -1,14 +1,14 @@
 /**
- * Settings controller for the itranslation settings page. It reads and
- * writes the `itranslation` settings namespace through the DSH connection
- * API and exposes a tiny observable store the section binds with
- * `bindSnapshotSelector`.
+ * Settings store for the itranslation prompt page. The host settings
+ * namespace is the single fact source: load reads `settings.describe`,
+ * save writes `settings.update`, and the page re-renders from the next
+ * snapshot. Mirrors the harness `ui-settings-models` page-store shape.
  */
 
-import type { ChangeEvent } from 'react'
-import { createObservable } from './observable'
+import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
+import type { SnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 
-/** Settings namespace owned by the itranslation preset (DESIGN.md §7). */
+/** Settings namespace owned by the itranslation preset. */
 export const ITRANSLATION_SETTINGS_NAMESPACE = 'itranslation'
 
 /** The four LLM prompt templates edited from the settings page. */
@@ -36,95 +36,76 @@ export interface ItranslationSettingsState {
   revision: number | undefined
 }
 
-const INITIAL: ItranslationSettingsState = {
-  status: 'idle',
-  error: null,
-  writable: false,
-  missing: false,
-  value: { ...DEFAULT_ITRANSLATION_SETTINGS },
-  revision: undefined,
+/** Human message for a rejected wire call (transport or business refusal). */
+export function messageOf(error: unknown): string {
+  return error instanceof Error ? error.message : String(error)
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === 'object' && value !== null && !Array.isArray(value)
 }
 
-function readPrompt(value: unknown, fallback: string): string {
-  return typeof value === 'string' ? value : fallback
+function readPrompt(value: unknown): string {
+  return typeof value === 'string' ? value : ''
 }
 
-/**
- * Fold a settings namespace's redacted value into the local shape, falling
- * back field-by-field to the built-in defaults.
- */
+/** Fold a namespace view's value into the local shape, field by field. */
 export function readSettingsValue(value: unknown): ItranslationSettingsValue {
   const root = isRecord(value) ? value : {}
   return {
-    preReadPrompt: readPrompt(root.preReadPrompt, DEFAULT_ITRANSLATION_SETTINGS.preReadPrompt),
-    translatePrompt: readPrompt(root.translatePrompt, DEFAULT_ITRANSLATION_SETTINGS.translatePrompt),
-    auditPrompt: readPrompt(root.auditPrompt, DEFAULT_ITRANSLATION_SETTINGS.auditPrompt),
-    revisePrompt: readPrompt(root.revisePrompt, DEFAULT_ITRANSLATION_SETTINGS.revisePrompt),
+    preReadPrompt: readPrompt(root.preReadPrompt),
+    translatePrompt: readPrompt(root.translatePrompt),
+    auditPrompt: readPrompt(root.auditPrompt),
+    revisePrompt: readPrompt(root.revisePrompt),
   }
 }
 
-/** Human message for a rejected wire call (transport or business refusal). */
-export function messageOf(error: unknown): string {
-  return error instanceof Error ? error.message : String(error)
-}
-
-interface SettingsNamespaceLike {
+/** Redacted namespace view this page needs from `settings.describe`. */
+interface SettingsNamespaceView {
   ns: string
   value: unknown
   revision: number
 }
 
-function namespaceOf(namespaces: readonly SettingsNamespaceLike[]): SettingsNamespaceLike | undefined {
-  return namespaces.find(namespace => namespace.ns === ITRANSLATION_SETTINGS_NAMESPACE)
-}
-
 type SettingsRpcResult<T> = { ok: true; value: T } | { ok: false; error: { message: string } }
 
-/** Structural slice of the DSH connection settings API used by this section. */
-export interface SettingsApi {
+/** The settings wire face this page needs. */
+export interface ItranslationSettingsApi {
   settings: {
     describe(_request: Record<string, never>): Promise<{
-      result: SettingsRpcResult<{ writable: boolean; namespaces: SettingsNamespaceLike[] }>
+      result: SettingsRpcResult<{ writable: boolean; namespaces: SettingsNamespaceView[] }>
     }>
     update(_request: { ns: string; patch: object; expectedRevision?: number }): Promise<{
-      result: SettingsRpcResult<SettingsNamespaceLike>
+      result: SettingsRpcResult<SettingsNamespaceView>
     }>
   }
-}
-
-/** Narrow an unknown connection/api value to the settings slice. */
-export function isSettingsApi(value: unknown): value is SettingsApi {
-  if (typeof value !== 'object' || value === null) return false
-  const settings = (value as { settings?: unknown }).settings
-  return typeof settings === 'object'
-    && settings !== null
-    && typeof (settings as { describe?: unknown }).describe === 'function'
-    && typeof (settings as { update?: unknown }).update === 'function'
 }
 
 /** Controller owned by one settings-section registration. */
 export class ItranslationSettingsController {
-  readonly store = createObservable<ItranslationSettingsState>(INITIAL)
+  readonly store: SnapshotStore<ItranslationSettingsState> = createSnapshotStore<ItranslationSettingsState>({
+    status: 'idle', error: null, writable: false, missing: false,
+    value: { ...DEFAULT_ITRANSLATION_SETTINGS }, revision: undefined,
+  })
 
-  constructor(private readonly api: SettingsApi) {}
+  constructor(private readonly api: ItranslationSettingsApi) {}
 
   private patch(patch: Partial<ItranslationSettingsState>): void {
-    this.store.set({ ...this.store.getSnapshot(), ...patch })
+    this.store.update((s) => { Object.assign(s, patch) })
   }
 
   private patchValue(value: ItranslationSettingsValue): void {
-    this.patch({ value: { ...value }, error: null })
+    this.store.update((s) => {
+      s.value = { ...value }
+      s.error = null
+    })
   }
 
   readonly load = async (): Promise<void> => {
     if (this.store.getSnapshot().status === 'loading') return
     this.patch({ status: 'loading', error: null })
     let writable: boolean
-    let namespaces: readonly SettingsNamespaceLike[]
+    let namespaces: SettingsNamespaceView[]
     try {
       const response = await this.api.settings.describe({})
       if (!response.result.ok) {
@@ -137,7 +118,7 @@ export class ItranslationSettingsController {
       this.patch({ status: 'error', error: messageOf(error), writable: false })
       return
     }
-    const namespace = namespaceOf(namespaces)
+    const namespace = namespaces.find(item => item.ns === ITRANSLATION_SETTINGS_NAMESPACE)
     if (namespace === undefined) {
       this.patch({
         status: 'ready',
@@ -180,24 +161,24 @@ export class ItranslationSettingsController {
     await this.load()
   }
 
-  readonly setPreReadPrompt = (event: ChangeEvent<HTMLTextAreaElement>): void => {
-    const value = this.store.getSnapshot().value
-    this.patchValue({ ...value, preReadPrompt: event.target.value })
+  readonly setPreReadPrompt = (value: string): void => {
+    const current = this.store.getSnapshot().value
+    this.patchValue({ ...current, preReadPrompt: value })
   }
 
-  readonly setTranslatePrompt = (event: ChangeEvent<HTMLTextAreaElement>): void => {
-    const value = this.store.getSnapshot().value
-    this.patchValue({ ...value, translatePrompt: event.target.value })
+  readonly setTranslatePrompt = (value: string): void => {
+    const current = this.store.getSnapshot().value
+    this.patchValue({ ...current, translatePrompt: value })
   }
 
-  readonly setAuditPrompt = (event: ChangeEvent<HTMLTextAreaElement>): void => {
-    const value = this.store.getSnapshot().value
-    this.patchValue({ ...value, auditPrompt: event.target.value })
+  readonly setAuditPrompt = (value: string): void => {
+    const current = this.store.getSnapshot().value
+    this.patchValue({ ...current, auditPrompt: value })
   }
 
-  readonly setRevisePrompt = (event: ChangeEvent<HTMLTextAreaElement>): void => {
-    const value = this.store.getSnapshot().value
-    this.patchValue({ ...value, revisePrompt: event.target.value })
+  readonly setRevisePrompt = (value: string): void => {
+    const current = this.store.getSnapshot().value
+    this.patchValue({ ...current, revisePrompt: value })
   }
 
   readonly save = (): void => { void this.persist() }
