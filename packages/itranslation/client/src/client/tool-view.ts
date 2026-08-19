@@ -25,7 +25,7 @@ export function ItranslationToolView(props: ToolCallViewProps): ReactElement {
     : null
   const inspect = props.inspect === undefined
     ? null
-    : createElement('button', { type: 'button', className: 'itranslation-tool-view-inspect', onClick: props.inspect }, '查看')
+    : createElement('button', { type: 'button', className: 'itranslation-tool-view-inspect', onClick: props.inspect }, 'Inspect')
   return createElement(
     'div',
     {

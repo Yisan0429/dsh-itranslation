@@ -225,17 +225,17 @@ describe('ItranslationSettingsSection', () => {
       status: 'idle', error: null, writable: false, missing: false, value: DEFAULT_ITRANSLATION_SETTINGS,
     })
     expect(load).toHaveBeenCalledOnce()
-    expect(html).toContain('整本书翻译的第 0 步问题卡')
+    expect(html).toContain('The step-0 confirmation card starts with these defaults.')
   })
 
   it('renders the loading state', () => {
     const { html } = renderWith({ status: 'loading', error: null, writable: false, missing: false, value: DEFAULT_ITRANSLATION_SETTINGS })
-    expect(html).toContain('正在读取整本书翻译设置')
+    expect(html).toContain('Loading Itranslation settings')
   })
 
   it('renders the load-error state', () => {
     const { html } = renderWith({ status: 'error', error: 'boom', writable: false, missing: false, value: DEFAULT_ITRANSLATION_SETTINGS })
-    expect(html).toContain('读取失败：boom')
+    expect(html).toContain('Failed to load: boom')
   })
 
   it('renders a ready editable form', () => {
@@ -243,23 +243,23 @@ describe('ItranslationSettingsSection', () => {
       status: 'ready', error: null, writable: true, missing: false,
       value: { genre: 'fiction', terminologyMode: 'manual' }, revision: 3,
     })
-    expect(html).toContain('体裁默认')
-    expect(html).toContain('术语确认模式')
-    expect(html).toContain('保存默认值')
-    expect(html).toContain('自动判断')
-    expect(html).not.toContain('未检测到 itranslation 设置命名空间')
+    expect(html).toContain('Default genre')
+    expect(html).toContain('Terminology mode')
+    expect(html).toContain('Save defaults')
+    expect(html).toContain('Auto')
+    expect(html).not.toContain('The itranslation settings namespace was not detected')
   })
 
   it('renders the missing-namespace notice', () => {
     const { html } = renderWith({
       status: 'ready', error: null, writable: false, missing: true, value: DEFAULT_ITRANSLATION_SETTINGS,
     })
-    expect(html).toContain('未检测到 itranslation 设置命名空间')
+    expect(html).toContain('The itranslation settings namespace was not detected')
   })
 
   it('renders saving and save-error states', () => {
     const saving = renderWith({ status: 'saving', error: null, writable: true, missing: false, value: DEFAULT_ITRANSLATION_SETTINGS })
-    expect(saving.html).toContain('保存中…')
+    expect(saving.html).toContain('Saving…')
     const error = renderWith({ status: 'ready', error: 'save failed', writable: true, missing: false, value: DEFAULT_ITRANSLATION_SETTINGS })
     expect(error.html).toContain('save failed')
   })

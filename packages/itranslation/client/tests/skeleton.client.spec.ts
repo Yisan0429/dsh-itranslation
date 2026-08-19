@@ -53,7 +53,7 @@ describe('client package host entry', () => {
   })
 
   it('provides a no-op host apply so the Loader accepts it as an entry', () => {
-    expect(() =>{  applyHost(); }).not.toThrow()
+    expect(() =>{  applyHost() }).not.toThrow()
   })
 })
 
@@ -91,7 +91,7 @@ describe('client browser plugin', () => {
     expect(section?.options).toMatchObject({
       id: 'itranslation',
       order: 30,
-      label: '整本书翻译',
+      label: 'Itranslation',
     })
     const injectFace = section?.options.inject?.() as Record<string, unknown> | undefined
     expect(injectFace).toBeDefined()

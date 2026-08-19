@@ -55,7 +55,7 @@ export function apply(ctx: ClientContext): void {
     name: 'settings.section',
     id: 'itranslation',
     order: 30,
-    label: '整本书翻译',
+    label: 'Itranslation',
     inject: () => injected,
   }, ItranslationSettingsSection))
 }

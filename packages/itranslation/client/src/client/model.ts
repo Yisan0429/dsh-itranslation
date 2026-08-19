@@ -30,21 +30,21 @@ export interface ToolViewSummary {
 }
 
 const TOOL_TITLES: Partial<Record<ItranslationToolName, string>> = {
-  'itranslation.prepare': '准备书目',
-  'itranslation.segment': '分段报告',
-  'itranslation.glossary': '术语表',
-  'itranslation.align': '对齐预览',
-  'itranslation.assemble': '组装成品',
-  itranslation_status: '翻译进度',
+  'itranslation.prepare': 'Prepare book',
+  'itranslation.segment': 'Segmentation report',
+  'itranslation.glossary': 'Glossary',
+  'itranslation.align': 'Alignment preview',
+  'itranslation.assemble': 'Assemble book',
+  itranslation_status: 'Translation progress',
 }
 
 const PHASE_LABELS: Record<string, string> = {
-  none: '未开始',
-  prepared: '已准备',
-  translating: '翻译中',
-  aligned: '已对齐',
-  audited: '已审查',
-  assembled: '已组装',
+  none: 'Not started',
+  prepared: 'Prepared',
+  translating: 'Translating',
+  aligned: 'Aligned',
+  audited: 'Audited',
+  assembled: 'Assembled',
 }
 
 type SummaryBody = Omit<ToolViewSummary, 'title'>
@@ -99,7 +99,7 @@ function arrayField(value: unknown): unknown[] | null {
 }
 
 function genericBody(): SummaryBody {
-  return { headline: '已完成', detail: [], tone: 'ok' }
+  return { headline: 'Completed', detail: [], tone: 'ok' }
 }
 
 function errorBody(block: ToolCallBlock): SummaryBody | null {
@@ -108,7 +108,7 @@ function errorBody(block: ToolCallBlock): SummaryBody | null {
   const code = block.error?.code
   const detail = name !== undefined && name !== '' ? name : code
   return {
-    headline: '调用失败',
+    headline: 'Call failed',
     detail: detail === undefined ? [] : [detail],
     tone: 'error',
   }
@@ -121,9 +121,9 @@ function prepareBody(value: unknown): SummaryBody {
   const slug = stringField(root.slug)
   const chapters = arrayField(root.chapters)
   const detail: string[] = []
-  if (slug !== null) detail.push(`书目目录：books/${slug}`)
-  detail.push(`章节：${chapters?.length ?? 0} 章`)
-  return { headline: title ?? '已准备', detail, tone: 'ok' }
+  if (slug !== null) detail.push(`Book dir: books/${slug}`)
+  detail.push(`Chapters: ${chapters?.length ?? 0}`)
+  return { headline: title ?? 'Prepared', detail, tone: 'ok' }
 }
 
 function segmentBody(value: unknown): SummaryBody {
@@ -132,15 +132,15 @@ function segmentBody(value: unknown): SummaryBody {
   const chapters = arrayField(root.chapters) ?? []
   const overlong = arrayField(root.overlongChapters) ?? []
   const detail: string[] = []
-  if (overlong.length > 0) detail.push(`超长章：${overlong.join(', ')}`)
-  return { headline: `共 ${chapters.length} 章`, detail, tone: 'ok' }
+  if (overlong.length > 0) detail.push(`Overlong chapters: ${overlong.join(', ')}`)
+  return { headline: `${chapters.length} chapters`, detail, tone: 'ok' }
 }
 
 function glossaryBody(value: unknown): SummaryBody {
   const root = isRecord(value) ? value : null
   if (root === null) return genericBody()
   const entries = arrayField(root.entries)
-  return { headline: `术语 ${entries?.length ?? 0} 条`, detail: [], tone: 'ok' }
+  return { headline: `${entries?.length ?? 0} terms`, detail: [], tone: 'ok' }
 }
 
 function alignmentBody(value: unknown, kind: 'align' | 'assemble'): SummaryBody {
@@ -149,11 +149,11 @@ function alignmentBody(value: unknown, kind: 'align' | 'assemble'): SummaryBody 
   const ok = booleanField(root.ok)
   if (ok === true) {
     const chapters = arrayField(root.chapters)
-    const headline = kind === 'align' ? `对齐 ${chapters?.length ?? 0} 章` : '成品已生成'
+    const headline = kind === 'align' ? `Aligned ${chapters?.length ?? 0} chapters` : 'Book assembled'
     const detail: string[] = []
     if (kind === 'assemble') {
       const outputFile = stringField(root.outputFile)
-      if (outputFile !== null) detail.push(`输出：${outputFile}`)
+      if (outputFile !== null) detail.push(`Output: ${outputFile}`)
     }
     return { headline, detail, tone: 'ok' }
   }
@@ -165,10 +165,10 @@ function alignmentBody(value: unknown, kind: 'align' | 'assemble'): SummaryBody 
       const chapter = integerField(mismatch.chapterIndex)
       const expected = integerField(mismatch.expected)
       const actual = integerField(mismatch.actual)
-      detail.push(`第 ${chapter ?? '?'} 章：应为 ${expected ?? '?'}，实际 ${actual ?? '?'}`)
+      detail.push(`Chapter ${chapter ?? '?'}: expected ${expected ?? '?'}, got ${actual ?? '?'}`)
     }
     if (message !== null) detail.push(message)
-    return { headline: kind === 'align' ? '对齐失败' : '组装失败', detail, tone: 'mismatch' }
+    return { headline: kind === 'align' ? 'Alignment mismatch' : 'Assembly mismatch', detail, tone: 'mismatch' }
   }
   return genericBody()
 }
@@ -180,8 +180,8 @@ function statusBody(value: unknown): SummaryBody {
   const total = integerField(root.totalChapters) ?? 0
   const phase = stringField(root.phase) ?? ''
   return {
-    headline: `已译 ${translated}/${total} 章`,
-    detail: [`阶段：${PHASE_LABELS[phase] ?? phase}`],
+    headline: `${translated}/${total} chapters translated`,
+    detail: [`Phase: ${PHASE_LABELS[phase] ?? phase}`],
     tone: 'ok',
   }
 }
@@ -192,8 +192,8 @@ export function summarizeToolCall(toolName: string, block: ToolCallBlock): ToolV
   const error = errorBody(block)
   if (error !== null) return { title, ...error }
   const read = readResult(block)
-  if (read === null) return { title, headline: '运行中…', detail: [], tone: 'running' }
-  if (!read.ok) return { title, headline: '结果解析失败', detail: [read.raw], tone: 'error' }
+  if (read === null) return { title, headline: 'Running…', detail: [], tone: 'running' }
+  if (!read.ok) return { title, headline: 'Result parse failed', detail: [read.raw], tone: 'error' }
   let body: SummaryBody
   switch (toolName) {
     case 'itranslation.prepare': body = prepareBody(read.value); break

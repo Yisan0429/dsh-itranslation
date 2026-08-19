@@ -25,11 +25,11 @@ export type ItranslationSettingsProps = PropsRuntime<'settings.section'> & Injec
 const GENRE_OPTIONS = ['auto', 'fiction', 'non-fiction', 'technical', 'children', 'other'] as const
 
 const GENRE_LABELS: Partial<Record<(typeof GENRE_OPTIONS)[number], string>> = {
-  auto: '自动判断',
-  fiction: '虚构文学',
-  'non-fiction': '非虚构',
-  technical: '技术/专业',
-  children: '童书',
+  auto: 'Auto',
+  fiction: 'Fiction',
+  'non-fiction': 'Non-fiction',
+  technical: 'Technical',
+  children: 'Children',
 }
 
 /**
@@ -48,20 +48,20 @@ export function ItranslationSettingsSection(props: ItranslationSettingsProps): R
   ) return null
   const state = useSnapshot(snapshot => snapshot)
   if (state.status === 'idle') void load()
-  if (state.status === 'loading') return createElement('p', { className: 'itranslation-settings-status' }, '正在读取整本书翻译设置…')
-  if (state.status === 'error') return createElement('p', { className: 'itranslation-settings-error' }, `读取失败：${state.error}`)
+  if (state.status === 'loading') return createElement('p', { className: 'itranslation-settings-status' }, 'Loading Itranslation settings…')
+  if (state.status === 'error') return createElement('p', { className: 'itranslation-settings-error' }, `Failed to load: ${state.error}`)
   const disabled = state.status === 'saving' || !state.writable
   return createElement(
     'div',
     { className: 'itranslation-settings' },
-    createElement('p', { className: 'itranslation-settings-intro' }, '整本书翻译的第 0 步问题卡会以这些默认值开始。'),
+    createElement('p', { className: 'itranslation-settings-intro' }, 'The step-0 confirmation card starts with these defaults.'),
     state.missing
-      ? createElement('p', { className: 'itranslation-settings-missing' }, '未检测到 itranslation 设置命名空间，当前显示内置默认值，无法保存。')
+      ? createElement('p', { className: 'itranslation-settings-missing' }, 'The itranslation settings namespace was not detected; showing built-in defaults, saving unavailable.')
       : null,
     createElement(
       'label',
       { className: 'itranslation-field' },
-      '体裁默认',
+      'Default genre',
       createElement(
         'select',
         { value: state.value.genre, disabled, onChange: setGenre },
@@ -71,18 +71,18 @@ export function ItranslationSettingsSection(props: ItranslationSettingsProps): R
     createElement(
       'label',
       { className: 'itranslation-field' },
-      '术语确认模式',
+      'Terminology mode',
       createElement(
         'select',
         { value: state.value.terminologyMode, disabled, onChange: setTerminologyMode },
-        createElement('option', { value: 'auto' }, '自动'),
-        createElement('option', { value: 'manual' }, '人工协同'),
+        createElement('option', { value: 'auto' }, 'Auto'),
+        createElement('option', { value: 'manual' }, 'Manual'),
       ),
     ),
     createElement(
       'button',
       { type: 'button', className: 'itranslation-settings-save', disabled, onClick: save },
-      state.status === 'saving' ? '保存中…' : '保存默认值',
+      state.status === 'saving' ? 'Saving…' : 'Save defaults',
     ),
     state.error === null ? null : createElement('p', { className: 'itranslation-settings-error' }, state.error),
   )

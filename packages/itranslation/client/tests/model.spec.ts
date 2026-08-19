@@ -40,8 +40,8 @@ function malformed(raw: string): ToolCallBlock {
 
 describe('toolTitle', () => {
   it('maps known tools to Chinese labels', () => {
-    expect(toolTitle('itranslation_status')).toBe('翻译进度')
-    expect(toolTitle('itranslation.prepare')).toBe('准备书目')
+    expect(toolTitle('itranslation_status')).toBe('Translation progress')
+    expect(toolTitle('itranslation.prepare')).toBe('Prepare book')
   })
 
   it('falls back to the wire name for unknown tools', () => {
@@ -81,14 +81,14 @@ describe('readResult', () => {
 describe('summarizeToolCall', () => {
   it('reports a running call', () => {
     expect(summarizeToolCall('itranslation_status', running('itranslation_status'))).toEqual({
-      title: '翻译进度', headline: '运行中…', detail: [], tone: 'running',
+      title: 'Translation progress', headline: 'Running…', detail: [], tone: 'running',
     })
   })
 
   it('reports a failed tool call', () => {
     const block = settled({}, { isError: true, error: { name: 'Error', code: 'E1' } })
     expect(summarizeToolCall('itranslation_status', block)).toEqual({
-      title: '翻译进度', headline: '调用失败', detail: ['Error'], tone: 'error',
+      title: 'Translation progress', headline: 'Call failed', detail: ['Error'], tone: 'error',
     })
   })
 
@@ -103,109 +103,109 @@ describe('summarizeToolCall', () => {
 
   it('reports malformed result JSON', () => {
     expect(summarizeToolCall('itranslation_status', malformed('{'))).toEqual({
-      title: '翻译进度', headline: '结果解析失败', detail: ['{'], tone: 'error',
+      title: 'Translation progress', headline: 'Result parse failed', detail: ['{'], tone: 'error',
     })
   })
 
   it('summarizes prepare', () => {
     const value = { title: '示例书', slug: 'shi-li-shu', chapters: [{ index: 1, title: '第一章' }] }
     expect(summarizeToolCall('itranslation.prepare', settled(value))).toEqual({
-      title: '准备书目',
+      title: 'Prepare book',
       headline: '示例书',
-      detail: ['书目目录：books/shi-li-shu', '章节：1 章'],
+      detail: ['Book dir: books/shi-li-shu', 'Chapters: 1'],
       tone: 'ok',
     })
   })
 
   it('summarizes prepare with defaults when fields are missing', () => {
     expect(summarizeToolCall('itranslation.prepare', settled({}))).toEqual({
-      title: '准备书目', headline: '已准备', detail: ['章节：0 章'], tone: 'ok',
+      title: 'Prepare book', headline: 'Prepared', detail: ['Chapters: 0'], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation.prepare', settled(null))).toEqual({
-      title: '准备书目', headline: '已完成', detail: [], tone: 'ok',
+      title: 'Prepare book', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes segment with and without overlong chapters', () => {
     const full = { chapters: [{ index: 1, paragraphs: 2 }], overlongChapters: [3, 5] }
     expect(summarizeToolCall('itranslation.segment', settled(full))).toEqual({
-      title: '分段报告', headline: '共 1 章', detail: ['超长章：3, 5'], tone: 'ok',
+      title: 'Segmentation report', headline: '1 chapters', detail: ['Overlong chapters: 3, 5'], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation.segment', settled({}))).toEqual({
-      title: '分段报告', headline: '共 0 章', detail: [], tone: 'ok',
+      title: 'Segmentation report', headline: '0 chapters', detail: [], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation.segment', settled(null))).toEqual({
-      title: '分段报告', headline: '已完成', detail: [], tone: 'ok',
+      title: 'Segmentation report', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes glossary', () => {
     expect(summarizeToolCall('itranslation.glossary', settled({ entries: [{ term: 'user' }] }))).toEqual({
-      title: '术语表', headline: '术语 1 条', detail: [], tone: 'ok',
+      title: 'Glossary', headline: '1 terms', detail: [], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation.glossary', settled({}))).toEqual({
-      title: '术语表', headline: '术语 0 条', detail: [], tone: 'ok',
+      title: 'Glossary', headline: '0 terms', detail: [], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation.glossary', settled(null))).toEqual({
-      title: '术语表', headline: '已完成', detail: [], tone: 'ok',
+      title: 'Glossary', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes successful align and assemble', () => {
     expect(summarizeToolCall('itranslation.align', settled({ ok: true }))).toEqual({
-      title: '对齐预览', headline: '对齐 0 章', detail: [], tone: 'ok',
+      title: 'Alignment preview', headline: 'Aligned 0 chapters', detail: [], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation.assemble', settled({ ok: true, outputFile: 'books/x/x.md' }))).toEqual({
-      title: '组装成品', headline: '成品已生成', detail: ['输出：books/x/x.md'], tone: 'ok',
+      title: 'Assemble book', headline: 'Book assembled', detail: ['Output: books/x/x.md'], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation.assemble', settled({ ok: true }))).toEqual({
-      title: '组装成品', headline: '成品已生成', detail: [], tone: 'ok',
+      title: 'Assemble book', headline: 'Book assembled', detail: [], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation.align', settled(null))).toEqual({
-      title: '对齐预览', headline: '已完成', detail: [], tone: 'ok',
+      title: 'Alignment preview', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes mismatch with and without detail', () => {
     const value = { ok: false, mismatch: { chapterIndex: 2, expected: 5, actual: 6 }, message: '段数失配' }
     expect(summarizeToolCall('itranslation.align', settled(value))).toEqual({
-      title: '对齐预览',
-      headline: '对齐失败',
-      detail: ['第 2 章：应为 5，实际 6', '段数失配'],
+      title: 'Alignment preview',
+      headline: 'Alignment mismatch',
+      detail: ['Chapter 2: expected 5, got 6', '段数失配'],
       tone: 'mismatch',
     })
     expect(summarizeToolCall('itranslation.assemble', settled({ ok: false }))).toEqual({
-      title: '组装成品', headline: '组装失败', detail: [], tone: 'mismatch',
+      title: 'Assemble book', headline: 'Assembly mismatch', detail: [], tone: 'mismatch',
     })
     expect(summarizeToolCall('itranslation.align', settled({ ok: false, mismatch: {} }))).toEqual({
-      title: '对齐预览', headline: '对齐失败', detail: ['第 ? 章：应为 ?，实际 ?'], tone: 'mismatch',
+      title: 'Alignment preview', headline: 'Alignment mismatch', detail: ['Chapter ?: expected ?, got ?'], tone: 'mismatch',
     })
   })
 
   it('falls back to generic for a non-boolean ok field', () => {
     expect(summarizeToolCall('itranslation.align', settled({ ok: 'yes' }))).toEqual({
-      title: '对齐预览', headline: '已完成', detail: [], tone: 'ok',
+      title: 'Alignment preview', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes status with known and unknown phases', () => {
     expect(summarizeToolCall('itranslation_status', settled({ translatedChapters: 2, totalChapters: 5, phase: 'translating' }))).toEqual({
-      title: '翻译进度', headline: '已译 2/5 章', detail: ['阶段：翻译中'], tone: 'ok',
+      title: 'Translation progress', headline: '2/5 chapters translated', detail: ['Phase: Translating'], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation_status', settled({ phase: 'mystery' }))).toEqual({
-      title: '翻译进度', headline: '已译 0/0 章', detail: ['阶段：mystery'], tone: 'ok',
+      title: 'Translation progress', headline: '0/0 chapters translated', detail: ['Phase: mystery'], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation_status', settled({}))).toEqual({
-      title: '翻译进度', headline: '已译 0/0 章', detail: ['阶段：'], tone: 'ok',
+      title: 'Translation progress', headline: '0/0 chapters translated', detail: ['Phase: '], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation_status', settled(null))).toEqual({
-      title: '翻译进度', headline: '已完成', detail: [], tone: 'ok',
+      title: 'Translation progress', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('falls back to generic for unknown parsed tools', () => {
     expect(summarizeToolCall('itranslation.unknown', settled({ ok: true }))).toEqual({
-      title: 'itranslation.unknown', headline: '已完成', detail: [], tone: 'ok',
+      title: 'itranslation.unknown', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
