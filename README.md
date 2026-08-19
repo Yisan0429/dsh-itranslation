@@ -7,7 +7,7 @@
 1. **质量与可复现优先** — 同一本书、同一配置,流程可复现;每次运行留下完整证据链(`meta.json`、审查报告、术语表、状态文件),留存可审计。
 2. **规模与成本经济** — 章节并行、子代理逐章翻译;已完成工作不重复付费(DSH 会话记录承接);反思修订在审查后询问、按需开启。
 
-**当前状态**:设计定稿,仓库架构与开发流程已建立。确定性文本引擎(`core`)已落地 slug、章节识别(`##` 章边界)、Markdown 空行分段与全书组装(D56/D57);`tools` 六个确定性工具与书级状态文件已落地(D58);`client` UI 已落地 Run 卡进度与设置页(D61)。host 工具侧已可挂载(preset 绝对路径行经 Cordis loader 验证注册 `itranslation.*` 六工具);client 浏览器半边尚待部署端链入模块表(D63)。
+**当前状态**:设计定稿,仓库架构与开发流程已建立。确定性文本引擎(`core`)已落地 slug、章节识别(`##` 章边界)、Markdown 空行分段与全书组装(D56/D57);`tools` 六个确定性工具与书级状态文件已落地(D58);`client` UI 已落地 Run 卡进度与设置页(D61)。DSH 部署链入已完成(D64):host 六工具经 preset 绝对路径行挂载、client 浏览器半边经部署端 file: 依赖 + cordis patch insert 进入模块表,Run 卡进度与设置页在 3080 可用。
 
 ## 仓库文档(有且仅有四份,均置于主目录)
 
@@ -48,6 +48,17 @@ pnpm run duplication  # jscpd 重复代码检查
 
 > 沙箱环境备注:`.npmrc` 将 pnpm 内容 store 指向仓库内 `.pnpm-store/`(已 gitignore),使安装在工作区写沙箱下也可复现;普通环境不受影响。
 
+### 链入本机 DSH 部署
+
+```bash
+pnpm run build                        # 先构建三包(含 client 浏览器 bundle)
+node scripts/install-web-deploy.mjs   # dry-run:预览会写入 ~/.dsh/profiles/web/ 的改动
+node scripts/install-web-deploy.mjs --apply   # 写入 file: 依赖 + cordis.patch.yml insert
+cd ~/.dsh/profiles/web && pnpm install && dsh web    # 重启 DSH 生效
+```
+
+> 部署脚本只改用户 profile(`~/.dsh/profiles/web/`),不碰 `~/deepseek-harness`(红线 1)。
+
 ## 开发流程
 
 1. **先读规范**:任何改动前对照 [DEVELOPMENT.md](./DEVELOPMENT.md) 的红线清单(2.7)与代码红线(2.4)。
@@ -60,6 +71,6 @@ pnpm run duplication  # jscpd 重复代码检查
 - [x] 架构与开发流程:workspace 三包、双面构建、检查栈、钩子、四份文档
 - [x] 确定性引擎补全:章节识别、分段、组装(`core`)(D56:书名 `#`/章 `##`/节 `###`)
 - [x] `tools` 工具面与书级状态文件(D58)
-- [x] preset(`~/.dsh/.agent-presets/itranslation/`)安装到位,host 工具绝对路径挂载验证通过,client 浏览器半边待部署端链入(D63)
+- [x] preset 安装 + host 工具挂载验证(D63);DSH 部署链入完成,host 六工具与 client Run 卡/设置页在 3080 可用(D64)
 - [x] `client` UI(Run 卡进度、设置页)(D61)
 - [ ] 九步流程端到端冒烟 + `meta.json` 证据链(D39)
