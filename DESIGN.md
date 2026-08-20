@@ -192,11 +192,11 @@ Itranslation 作为 DSH 插件的核心理念只有两条：
 
 | 工具（候选名） | 工作单元 |
 |---|---|
-| `itranslation.prepare` | 一本书：提取 → 清理 → 章节识别（确定性），产出章节结构 |
-| `itranslation.glossary` | 术语表确认/增删/回写（两种术语模式共用） |
-| `itranslation.segment` | 全书/单章分段清单（确定性分段 + 主 agent 调整留痕） |
-| `itranslation.align` | 全书按章组装（确定性） |
-| `itranslation.assemble` | 按 Markdown 出成品 + meta.json（确定性） |
+| `itranslation_prepare` | 一本书：提取 → 清理 → 章节识别（确定性），产出章节结构 |
+| `itranslation_glossary` | 术语表确认/增删/回写（两种术语模式共用） |
+| `itranslation_segment` | 全书/单章分段清单（确定性分段 + 主 agent 调整留痕） |
+| `itranslation_align` | 全书按章组装（确定性） |
+| `itranslation_assemble` | 按 Markdown 出成品 + meta.json（确定性） |
 | `itranslation_status` | 进度与证据摘要（读书级目录文件） |
 
 预读、翻译、审查、修订四个 LLM 过程**不在工具面**——由 agent 直接调 DSH `llm` 服务与 `subagent` 工具完成（D26）；插件工具只负责确定性文本层与书级状态文件。
@@ -252,8 +252,8 @@ agent 在约束内自由决策。硬性拦截只在确定性工具处生效（D3
 |---|---|
 | `llm` 服务 / 模型路由 | 各过程模型统一部署默认（D33）；预读、审查、修订由 agent 直接调 `llm` 服务，翻译由子代理执行；token 用量经流内 `usage` chunk 与会话日志 `assistant/message.usage` 获取，耗时需插件自测、过程标签自打（D29） |
 | `subagents` 服务 | 一章一代理派发（preset 含 tool-subagent 行，provider: spawn）；子代理模型经 `config.agentOptions.model` 固定（D33） |
-| `settings` 服务 | namespace `itranslation`：四个 LLM 提示词模板（预读/翻译/审查/修订），由提示词设置页编辑 |
-| Client Slots | `tool.view.cordis`（Run 卡进度）；`settings.section`（提示词设置页：四个文本框） |
+| `settings` 服务 | namespace `itranslation`：四个 LLM 提示词模板（预读/翻译/审查/修订），由提示词设置页经插件自有同源路由 `/_dsh/itranslation/settings` 读写（D69；浏览器 settings 线仅放行 apiproxy 白名单命名空间，插件命名空间不可达） |
+| Client Slots | `tool.view.cordis`（Run 卡进度）；`settings.section`（提示词设置页：四个文本框）。视觉必须对齐 harness 设计语言（D66）：用 `@deepseek-ai/dsh-client-ui-primitives` 组合、`*.module.css` + `--dsw-alias-*` token 走主题、经 `clientBundle` tsdown preset 产出 bundle，禁止手写 `className` 或绕开 CSS Module 管线 |
 | 问题卡 | 复用 DSH 现有提问交互（ask_user_question 同款），用于三处停点 |
 | 会话持久化 | DSH 会话日志即进度记录，无需插件自建断点（D23）；中断后回到原会话继续，跨会话不自动恢复（D36） |
 | 会话读取 | `ctx.sessions`/`ctx.sessionPersistence` 可读任意会话完整事件流与消息，支撑 `status` 进度摘要（D30） |
