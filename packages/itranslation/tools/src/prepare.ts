@@ -1,5 +1,5 @@
 /**
- * `itranslation.prepare` — deterministic book intake (DESIGN.md §3 step 1):
+ * `itranslation_prepare` — deterministic book intake (DESIGN.md §3 step 1):
  * read E2M-produced Markdown, detect `##` chapters (D56), and land the
  * cleaned source backups (`source/<n>.md`) plus `state.json`. Refuses to
  * overwrite an already-prepared book (D36: no cross-session auto-recovery).
@@ -24,7 +24,7 @@ function resolveTitle(explicit: string | undefined, path: string): string {
 
 export function applyPrepare(ctx: Context): void {
   ctx.tools.register(defineTool({
-    name: 'itranslation.prepare',
+    name: 'itranslation_prepare',
     description: '一本书的确定性录入：读取 E2M 转出的 Markdown，识别 `##` 章边界，'
       + '落盘清理后的原文备份 source/<n>.md 与章结构 state.json。已准备过的书会拒绝覆盖。',
     parameters: {

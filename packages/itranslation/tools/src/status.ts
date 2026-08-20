@@ -46,7 +46,7 @@ export function applyStatus(ctx: Context): void {
       slug: {
         type: 'string',
         required: true,
-        description: '书目 slug（itranslation.prepare 返回的 slug）。',
+        description: '书目 slug（itranslation_prepare 返回的 slug）。',
       },
     },
     output: {

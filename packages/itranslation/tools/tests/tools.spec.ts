@@ -15,13 +15,13 @@ function setup(cwd = '/ws'): { captured: CapturedCtx; exec: ToolRunContext } {
   return { captured, exec: fakeExec(cwd) }
 }
 
-/** Prepare a two-chapter book through the real `itranslation.prepare` tool. */
+/** Prepare a two-chapter book through the real `itranslation_prepare` tool. */
 async function prepareBook(captured: CapturedCtx, exec: ToolRunContext): Promise<unknown> {
   captured.mem.seed('book.md', MARKDOWN)
-  return run(toolByName(captured, 'itranslation.prepare'), { path: 'book.md', title: SLUG }, exec)
+  return run(toolByName(captured, 'itranslation_prepare'), { path: 'book.md', title: SLUG }, exec)
 }
 
-describe('itranslation.prepare', () => {
+describe('itranslation_prepare', () => {
   it('writes source backups and state.json, returning the book structure', async () => {
     const { captured, exec } = setup()
     const result = await prepareBook(captured, exec)
@@ -44,28 +44,28 @@ describe('itranslation.prepare', () => {
   it('derives the title from the file name when omitted', async () => {
     const { captured, exec } = setup()
     captured.mem.seed('三体.md', MARKDOWN)
-    const result = await run(toolByName(captured, 'itranslation.prepare'), { path: '三体.md' }, exec)
+    const result = await run(toolByName(captured, 'itranslation_prepare'), { path: '三体.md' }, exec)
     expect(result).toMatchObject({ title: '三体', slug: '三体' })
   })
 
   it('refuses to overwrite an already-prepared book', async () => {
     const { captured, exec } = setup()
     await prepareBook(captured, exec)
-    await expect(run(toolByName(captured, 'itranslation.prepare'), { path: 'book.md', title: SLUG }, exec))
+    await expect(run(toolByName(captured, 'itranslation_prepare'), { path: 'book.md', title: SLUG }, exec))
       .rejects.toThrow(/已准备过/)
   })
 
   it('rejects an empty derived title', async () => {
     const { captured, exec } = setup()
-    await expect(run(toolByName(captured, 'itranslation.prepare'), { path: '' }, exec)).rejects.toThrow(/书名缺失/)
+    await expect(run(toolByName(captured, 'itranslation_prepare'), { path: '' }, exec)).rejects.toThrow(/书名缺失/)
   })
 })
 
-describe('itranslation.segment', () => {
+describe('itranslation_segment', () => {
   it('reports per-chapter paragraph/sentence/byte counts', async () => {
     const { captured, exec } = setup()
     await prepareBook(captured, exec)
-    const result = await run(toolByName(captured, 'itranslation.segment'), { slug: SLUG }, exec)
+    const result = await run(toolByName(captured, 'itranslation_segment'), { slug: SLUG }, exec)
 
     expect(result).toMatchObject({
       slug: SLUG,
@@ -80,10 +80,10 @@ describe('itranslation.segment', () => {
   it('restricts to a single chapter and rejects an unknown one', async () => {
     const { captured, exec } = setup()
     await prepareBook(captured, exec)
-    const single = await run(toolByName(captured, 'itranslation.segment'), { slug: SLUG, chapter: 2 }, exec)
+    const single = await run(toolByName(captured, 'itranslation_segment'), { slug: SLUG, chapter: 2 }, exec)
     expect(single).toMatchObject({ chapters: [{ index: 2, title: '第二章' }] })
 
-    await expect(run(toolByName(captured, 'itranslation.segment'), { slug: SLUG, chapter: 9 }, exec))
+    await expect(run(toolByName(captured, 'itranslation_segment'), { slug: SLUG, chapter: 9 }, exec))
       .rejects.toThrow(/第 9 章不存在/)
   })
 
@@ -92,12 +92,12 @@ describe('itranslation.segment', () => {
     apply(captured.ctx, { overlongThresholdBytes: 8 })
     const exec = fakeExec()
     await prepareBook(captured, exec)
-    const result = await run(toolByName(captured, 'itranslation.segment'), { slug: SLUG }, exec)
+    const result = await run(toolByName(captured, 'itranslation_segment'), { slug: SLUG }, exec)
     expect(result).toMatchObject({ overlongChapters: [1, 2] })
   })
 })
 
-describe('itranslation.glossary', () => {
+describe('itranslation_glossary', () => {
   async function prepared(captured: CapturedCtx, exec: ToolRunContext): Promise<void> {
     await prepareBook(captured, exec)
   }
@@ -106,7 +106,7 @@ describe('itranslation.glossary', () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)
     const result = await run(
-      toolByName(captured, 'itranslation.glossary'),
+      toolByName(captured, 'itranslation_glossary'),
       { slug: SLUG, set: [{ term: 'user', translation: '用户' }], source: 'manual' },
       exec,
     )
@@ -119,12 +119,12 @@ describe('itranslation.glossary', () => {
   it('removes entries and reads back the current table when unchanged', async () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)
-    await run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG, set: [{ term: 'a', translation: '甲' }] }, exec)
-    const removed = await run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG, remove: ['a'] }, exec)
+    await run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG, set: [{ term: 'a', translation: '甲' }] }, exec)
+    const removed = await run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG, remove: ['a'] }, exec)
     expect(removed).toMatchObject({ entries: [] })
 
-    await run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG, set: [{ term: 'b', translation: '乙' }] }, exec)
-    const read = await run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG }, exec)
+    await run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG, set: [{ term: 'b', translation: '乙' }] }, exec)
+    const read = await run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG }, exec)
     expect(read).toMatchObject({ entries: [{ term: 'b', translation: '乙' }] })
   })
 
@@ -132,11 +132,11 @@ describe('itranslation.glossary', () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)
     await run(
-      toolByName(captured, 'itranslation.glossary'),
+      toolByName(captured, 'itranslation_glossary'),
       { slug: SLUG, set: [{ term: 'user', translation: '用户', note: '登录场景' }], source: 'manual' },
       exec,
     )
-    const read = await run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG }, exec)
+    const read = await run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG }, exec)
     expect(read).toMatchObject({ entries: [{ term: 'user', translation: '用户', note: '登录场景', source: 'manual' }] })
   })
 
@@ -144,7 +144,7 @@ describe('itranslation.glossary', () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)
     const result = await run(
-      toolByName(captured, 'itranslation.glossary'),
+      toolByName(captured, 'itranslation_glossary'),
       { slug: SLUG, set: [{ term: 'a', translation: '乙', note: '' }] },
       exec,
     )
@@ -154,9 +154,9 @@ describe('itranslation.glossary', () => {
   it('overwrites an existing term on re-set', async () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)
-    await run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG, set: [{ term: 'a', translation: '甲' }] }, exec)
+    await run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG, set: [{ term: 'a', translation: '甲' }] }, exec)
     const result = await run(
-      toolByName(captured, 'itranslation.glossary'),
+      toolByName(captured, 'itranslation_glossary'),
       { slug: SLUG, set: [{ term: 'a', translation: '甲二' }] },
       exec,
     )
@@ -167,7 +167,7 @@ describe('itranslation.glossary', () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)
     captured.mem.seed(`books/${SLUG}/glossary.json`, '{"entries":[{"term":"x","translation":"y"}]}')
-    const read = await run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG }, exec)
+    const read = await run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG }, exec)
     expect(read).toMatchObject({ entries: [{ term: 'x', translation: 'y' }] })
   })
 
@@ -175,7 +175,7 @@ describe('itranslation.glossary', () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)
     await expect(
-      run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG, set: [{ term: '', translation: 'x' }] }, exec),
+      run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG, set: [{ term: '', translation: 'x' }] }, exec),
     ).rejects.toThrow(/term 不能为空/)
   })
 
@@ -183,7 +183,7 @@ describe('itranslation.glossary', () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)
     await expect(
-      run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG, set: [{ term: 'a', translation: '' }] }, exec),
+      run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG, set: [{ term: 'a', translation: '' }] }, exec),
     ).rejects.toThrow(/translation 不能为空/)
   })
 
@@ -203,12 +203,12 @@ describe('itranslation.glossary', () => {
     ]
     for (const [content, message] of cases) {
       captured.mem.seed(`books/${SLUG}/glossary.json`, content)
-      await expect(run(toolByName(captured, 'itranslation.glossary'), { slug: SLUG }, exec)).rejects.toThrow(message)
+      await expect(run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG }, exec)).rejects.toThrow(message)
     }
   })
 })
 
-describe('itranslation.align', () => {
+describe('itranslation_align', () => {
   async function withChapters(captured: CapturedCtx, exec: ToolRunContext, files: Record<string, string>): Promise<void> {
     await prepareBook(captured, exec)
     for (const [file, content] of Object.entries(files)) captured.mem.seed(`books/${SLUG}/chapters/${file}`, content)
@@ -220,7 +220,7 @@ describe('itranslation.align', () => {
       '1.md': '译一段。\n\n译二段。',
       '2.md': '译三段。',
     })
-    const result = await run(toolByName(captured, 'itranslation.align'), { slug: SLUG }, exec)
+    const result = await run(toolByName(captured, 'itranslation_align'), { slug: SLUG }, exec)
     expect(result).toMatchObject({
       ok: true,
       slug: SLUG,
@@ -236,14 +236,14 @@ describe('itranslation.align', () => {
   it('joins over-long chapter fragments', async () => {
     const { captured, exec } = setup()
     await withChapters(captured, exec, { '1.1.md': '译一段。', '1.2.md': '译二段。', '2.md': '译三段。' })
-    const result = await run(toolByName(captured, 'itranslation.align'), { slug: SLUG }, exec)
+    const result = await run(toolByName(captured, 'itranslation_align'), { slug: SLUG }, exec)
     expect(result).toMatchObject({ ok: true })
   })
 
   it('returns a structured mismatch when paragraph counts differ', async () => {
     const { captured, exec } = setup()
     await withChapters(captured, exec, { '1.md': '只有一段。', '2.md': '译三段。' })
-    const result = await run(toolByName(captured, 'itranslation.align'), { slug: SLUG }, exec)
+    const result = await run(toolByName(captured, 'itranslation_align'), { slug: SLUG }, exec)
     expect(result).toMatchObject({
       ok: false,
       mismatch: { kind: 'paragraph-count', chapterIndex: 1, expected: 2, actual: 1 },
@@ -253,11 +253,11 @@ describe('itranslation.align', () => {
   it('throws when a chapter translation is missing', async () => {
     const { captured, exec } = setup()
     await prepareBook(captured, exec)
-    await expect(run(toolByName(captured, 'itranslation.align'), { slug: SLUG }, exec)).rejects.toThrow(/译文缺失/)
+    await expect(run(toolByName(captured, 'itranslation_align'), { slug: SLUG }, exec)).rejects.toThrow(/译文缺失/)
   })
 })
 
-describe('itranslation.assemble', () => {
+describe('itranslation_assemble', () => {
   async function ready(captured: CapturedCtx, exec: ToolRunContext): Promise<void> {
     await prepareBook(captured, exec)
     captured.mem.seed(`books/${SLUG}/chapters/1.md`, '译一段。\n\n译二段。')
@@ -267,7 +267,7 @@ describe('itranslation.assemble', () => {
   it('requires the audit report before assembling', async () => {
     const { captured, exec } = setup()
     await ready(captured, exec)
-    await expect(run(toolByName(captured, 'itranslation.assemble'), { slug: SLUG }, exec)).rejects.toThrow(/审查报告缺失/)
+    await expect(run(toolByName(captured, 'itranslation_assemble'), { slug: SLUG }, exec)).rejects.toThrow(/审查报告缺失/)
   })
 
   it('writes the final Markdown and meta.json evidence chain', async () => {
@@ -275,7 +275,7 @@ describe('itranslation.assemble', () => {
     await ready(captured, exec)
     captured.mem.seed(`books/${SLUG}/audit-report.md`, '# 审查报告\n')
     const result = await run(
-      toolByName(captured, 'itranslation.assemble'),
+      toolByName(captured, 'itranslation_assemble'),
       { slug: SLUG, processes: [{ step: 'translate', model: 'default' }] },
       exec,
     )
@@ -312,7 +312,7 @@ describe('itranslation.assemble', () => {
     captured.mem.seed(`books/${SLUG}/chapters/1.md`, '只有一段。')
     captured.mem.seed(`books/${SLUG}/chapters/2.md`, '译三段。')
     captured.mem.seed(`books/${SLUG}/audit-report.md`, '# 审查报告\n')
-    const result = await run(toolByName(captured, 'itranslation.assemble'), { slug: SLUG }, exec)
+    const result = await run(toolByName(captured, 'itranslation_assemble'), { slug: SLUG }, exec)
     expect(result).toMatchObject({ ok: false, mismatch: { kind: 'paragraph-count', chapterIndex: 1 } })
   })
 })
@@ -374,7 +374,7 @@ describe('itranslation_status', () => {
     const translating = await run(toolByName(captured, 'itranslation_status'), { slug: SLUG }, exec)
     expect(translating).toMatchObject({ translatedChapters: 2, phase: 'audited' })
 
-    await run(toolByName(captured, 'itranslation.assemble'), { slug: SLUG }, exec)
+    await run(toolByName(captured, 'itranslation_assemble'), { slug: SLUG }, exec)
     const assembled = await run(toolByName(captured, 'itranslation_status'), { slug: SLUG }, exec)
     expect(assembled).toMatchObject({ phase: 'assembled', artifacts: { meta: true, output: true } })
   })

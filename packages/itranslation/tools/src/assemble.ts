@@ -1,5 +1,5 @@
 /**
- * `itranslation.assemble` — deterministic final output + evidence chain
+ * `itranslation_assemble` — deterministic final output + evidence chain
  * (DESIGN.md §3 step 8): requires `state.json`, `chapters/`, and
  * `audit-report.md` (D38), re-assembles from current chapters, and writes the
  * final Markdown (`<slug>.md`) plus `meta.json` (D34).
@@ -20,14 +20,14 @@ const META_SCHEMA_VERSION = 1
 
 export function applyAssemble(ctx: Context): void {
   ctx.tools.register(defineTool({
-    name: 'itranslation.assemble',
+    name: 'itranslation_assemble',
     description: '确定性出成品 + 证据链：须 state.json、chapters/、audit-report.md 齐全（D38），'
       + '重组装全书并写成品 <slug>.md 与 meta.json（可选 processes 记录各 LLM 过程）。段数失配返回结构化 ok:false。',
     parameters: {
       slug: {
         type: 'string',
         required: true,
-        description: '书目 slug（itranslation.prepare 返回的 slug）。',
+        description: '书目 slug（itranslation_prepare 返回的 slug）。',
       },
       processes: {
         type: 'array',

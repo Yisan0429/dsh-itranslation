@@ -13,7 +13,6 @@ import { applyAssemble } from './assemble'
 import { applyGlossary } from './glossary'
 import { applyPrepare } from './prepare'
 import { applySegment } from './segment'
-import { applySettings } from './settings'
 import { applyStatus } from './status'
 
 /** Cordis plugin name used by loader diagnostics. */
@@ -54,5 +53,4 @@ export function apply(ctx: Context, config: Config): void {
   applyAlign(ctx)
   applyAssemble(ctx)
   applyStatus(ctx)
-  applySettings(ctx)
 }

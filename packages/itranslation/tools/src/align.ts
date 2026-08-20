@@ -1,5 +1,5 @@
 /**
- * `itranslation.align` — deterministic chapter assembly + validation
+ * `itranslation_align` — deterministic chapter assembly + validation
  * (DESIGN.md §3 step 5): read source backups and translated chapters
  * (including `<n>.<k>.md` fragments, D48), run core `assembleBook`, and write
  * the `aligned.md` preview. A paragraph/chapter-count mismatch is returned as
@@ -18,14 +18,14 @@ import type { AlignChapter, AlignResult } from './types'
 
 export function applyAlign(ctx: Context): void {
   ctx.tools.register(defineTool({
-    name: 'itranslation.align',
+    name: 'itranslation_align',
     description: '确定性组装校验：读 source/<n>.md 与 chapters/<n>.md（含分片）→ 按空行比对段数并组装，'
-      + '写 aligned.md 预览；段数失配返回结构化 ok:false 由你转问用户（D56）。须先 itranslation.prepare。',
+      + '写 aligned.md 预览；段数失配返回结构化 ok:false 由你转问用户（D56）。须先 itranslation_prepare。',
     parameters: {
       slug: {
         type: 'string',
         required: true,
-        description: '书目 slug（itranslation.prepare 返回的 slug）。',
+        description: '书目 slug（itranslation_prepare 返回的 slug）。',
       },
     },
     output: {

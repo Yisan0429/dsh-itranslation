@@ -42,7 +42,7 @@ interface ProcessRecord {
   notes?: string
 }
 
-/** `meta.json` evidence-chain shape written by `itranslation.assemble` (D34). */
+/** `meta.json` evidence-chain shape written by `itranslation_assemble` (D34). */
 export interface MetaFile {
   schemaVersion: number
   /** Deterministic engine version that produced the run (DESIGN.md §1 P1). */
@@ -59,7 +59,7 @@ export interface MetaFile {
   processes: ProcessRecord[]
 }
 
-/** `itranslation.prepare` result. */
+/** `itranslation_prepare` result. */
 export interface PrepareResult {
   slug: string
   bookDir: string
@@ -79,14 +79,14 @@ export interface SegmentChapter {
   overlong: boolean
 }
 
-/** `itranslation.segment` result. */
+/** `itranslation_segment` result. */
 export interface SegmentResult {
   slug: string
   chapters: SegmentChapter[]
   overlongChapters: number[]
 }
 
-/** `itranslation.glossary` result. */
+/** `itranslation_glossary` result. */
 export interface GlossaryResult {
   slug: string
   entries: GlossaryEntry[]
@@ -108,7 +108,7 @@ export interface MismatchReport {
   actual: number
 }
 
-/** `itranslation.align` result: `ok` plus either aligned chapters or a mismatch. */
+/** `itranslation_align` result: `ok` plus either aligned chapters or a mismatch. */
 export interface AlignResult {
   ok: boolean
   slug: string
@@ -118,7 +118,7 @@ export interface AlignResult {
   message?: string
 }
 
-/** `itranslation.assemble` result. */
+/** `itranslation_assemble` result. */
 export interface AssembleResult {
   ok: boolean
   slug: string

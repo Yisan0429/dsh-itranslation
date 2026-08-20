@@ -1,5 +1,5 @@
 /**
- * `itranslation.glossary` — deterministic `glossary.json` management
+ * `itranslation_glossary` — deterministic `glossary.json` management
  * (DESIGN.md §3 step 2 / §5.4): upsert (`set`) and remove (`remove`) term
  * entries and write the result back. The LLM side (pre-read, human review)
  * decides terms; this tool only applies and persists them.
@@ -81,14 +81,14 @@ function mergeEntries(
 
 export function applyGlossary(ctx: Context): void {
   ctx.tools.register(defineTool({
-    name: 'itranslation.glossary',
+    name: 'itranslation_glossary',
     description: '术语表确定性管理：按 term 增补（set）或删除（remove）条目并回写 glossary.json；'
-      + '不带 set/remove 时只读返回当前条目。须先 itranslation.prepare。',
+      + '不带 set/remove 时只读返回当前条目。须先 itranslation_prepare。',
     parameters: {
       slug: {
         type: 'string',
         required: true,
-        description: '书目 slug（itranslation.prepare 返回的 slug）。',
+        description: '书目 slug（itranslation_prepare 返回的 slug）。',
       },
       set: {
         type: 'array',

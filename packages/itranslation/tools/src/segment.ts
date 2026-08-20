@@ -1,5 +1,5 @@
 /**
- * `itranslation.segment` — deterministic read-only segmentation report
+ * `itranslation_segment` — deterministic read-only segmentation report
  * (DESIGN.md §3 step 3, D57): paragraph/sentence/byte counts per chapter with
  * an over-long flag. Segment structure lives in the Markdown blank lines, so
  * this tool writes nothing; the main agent stops on flagged chapters (D57).
@@ -28,14 +28,14 @@ function selectChapters(
 
 export function applySegment(ctx: Context, overlongThresholdBytes: number): void {
   ctx.tools.register(defineTool({
-    name: 'itranslation.segment',
+    name: 'itranslation_segment',
     description: '确定性分段报告（只读，不写盘）：按 Markdown 空行统计每章段数、句数与字节，'
-      + '并标记超出上下文预算的超长章（D57）。须先 itranslation.prepare。',
+      + '并标记超出上下文预算的超长章（D57）。须先 itranslation_prepare。',
     parameters: {
       slug: {
         type: 'string',
         required: true,
-        description: '书目 slug（itranslation.prepare 返回的 slug）。',
+        description: '书目 slug（itranslation_prepare 返回的 slug）。',
       },
       chapter: {
         type: 'integer',
