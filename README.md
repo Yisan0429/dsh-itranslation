@@ -8,7 +8,7 @@
 <h1 align="center">Itranslation × DSH</h1>
 <p align="center"><strong>整本书翻译生产线 · DeepSeek Harness Agent Preset</strong></p>
 <p align="center">
-  E2M Markdown → 全本中文译文<br>
+  Markdown → 全本中文译文<br>
   确定性章节识别 · 空行分段 · 子代理逐章翻译 · 软对齐组装 · 全书审查 · 定向修订 · meta.json 证据链
 </p>
 
@@ -18,7 +18,7 @@
 
 ## 概览
 
-Itranslation × DSH 是一个整本书翻译生产线的 DeepSeek Harness agent preset：把一本书交给 agent，得到全本中文译文与完整证据链。书籍先经 E2M 统一转成 Markdown，经九步流程自动处理——确定性引擎负责章节识别、分段与组装（纯代码、不经过 LLM），子代理负责逐章翻译（独立上下文、不占主上下文），独立审查模型按段对照原文备份定位问题，只修问题段——最终输出规范格式的 Markdown 成品与可审计的 `meta.json` 证据链。
+Itranslation × DSH 是一个整本书翻译生产线的 DeepSeek Harness agent preset：把一本书交给 agent，得到全本中文译文与完整证据链。书籍建议先经 E2M 统一转成 Markdown，经九步流程自动处理——确定性引擎负责章节识别、分段与组装（纯代码、不经过 LLM），子代理负责逐章翻译（独立上下文、不占主上下文），独立审查模型按段对照原文备份定位问题，只修问题段——最终输出规范格式的 Markdown 成品与可审计的 `meta.json` 证据链。
 
 同一本书、同一配置可复现重跑；每次运行落盘 `meta.json`、审查报告、术语表与状态文件，留存可审计。
 
@@ -168,7 +168,7 @@ dsh-itranslation/
 
 检查闸（提交前必过）：`typecheck`（host + client 双聚合）→ `lint`（oxlint）→ `test:coverage`（逐文件 100% 覆盖率）→ `hygiene`（knip + publint）→ `duplication`（jscpd）。lefthook 在 pre-commit 跑增量 lint + 全量 typecheck，commit-msg 校验 conventional commits，pre-push 跑测试与覆盖率。
 
-规范与决策：设计唯一依据 [DESIGN.md](./DESIGN.md)，开发规范与决策日志 [DEVELOPMENT.md](./DEVELOPMENT.md)，agent 工作守则 [AGENTS.md](./AGENTS.md)。仓库文档有且仅有四份，不新增第五份。
+规范与决策：设计唯一依据 [DESIGN.md](./DESIGN.md)，开发规范与决策日志 [DEVELOPMENT.md](./DEVELOPMENT.md)。
 
 ## License
 
