@@ -1,15 +1,20 @@
 /**
- * The itranslation settings section: four prompt templates for the LLM
- * steps (pre-reading, translation, audit, revision). Mirrors the harness
- * settings-section shape: the slot outlet spreads the inject face flat, so
- * props are the partial injected dependencies.
+ * The itranslation settings section (D66): four prompt templates for the LLM
+ * steps (pre-reading, translation, audit, revision). Composes the shared
+ * `Button` primitive with CSS Module styles resolved to `--dsw-alias-*`
+ * theme tokens; the multi-line prompt fields stay native `<textarea>`s (the
+ * primitives' `Input` atom is single-line only), styled through the theme.
+ * Mirrors the harness settings-section shape: the slot outlet spreads the
+ * inject face flat, so props are the partial injected dependencies.
  */
 
 import { createElement } from 'react'
 import type { ChangeEvent, ReactElement } from 'react'
 import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-web-react'
+import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
 import type { ItranslationSettingsController, ItranslationSettingsState } from './settings-store'
-import type { en } from './settings-locales'
+import type { SettingsKey } from './settings-locales'
+import css from './settings-section.module.css'
 
 /** Injected dependencies of the itranslation settings section. */
 export interface ItranslationSettingsInjected {
@@ -18,7 +23,7 @@ export interface ItranslationSettingsInjected {
   /** uSES subscription hook bound to the controller store. */
   useSnapshot: SnapshotSelectorHook<ItranslationSettingsState>
   /** Section copy. */
-  t: (key: keyof typeof en) => string
+  t: (key: SettingsKey) => string
 }
 
 /** Props delivered by the slot outlet: the inject face spread flat. */
@@ -40,7 +45,7 @@ const SETTERS = {
 
 /**
  * Render the settings section.
- * @param props - slot runtime share plus the injected store/action face.
+ * @param props - the inject face carrying controller/useSnapshot/t.
  * @returns the section, or null while the shell has not injected yet.
  */
 export function ItranslationSettingsSection(props: ItranslationSettingsProps): ReactElement | null {
@@ -48,24 +53,24 @@ export function ItranslationSettingsSection(props: ItranslationSettingsProps): R
   if (controller === undefined || useSnapshot === undefined || t === undefined) return null
   const state = useSnapshot(snapshot => snapshot)
   if (state.status === 'idle') void controller.load()
-  if (state.status === 'loading') return createElement('p', { className: 'itranslation-settings-status' }, t('loading'))
-  if (state.status === 'error') return createElement('p', { className: 'itranslation-settings-error' }, `${t('failed')} ${state.error}`)
+  if (state.status === 'loading') return createElement('p', { className: css.status }, t('loading'))
+  if (state.status === 'error') return createElement('p', { className: css.error }, `${t('failed')} ${state.error}`)
   const disabled = state.status === 'saving' || !state.writable
   return createElement(
     'div',
-    { className: 'itranslation-settings' },
-    createElement('p', { className: 'itranslation-settings-intro' }, t('intro')),
+    { className: css.settings },
+    createElement('p', { className: css.intro }, t('intro')),
     state.missing
-      ? createElement('p', { className: 'itranslation-settings-missing' }, t('missing'))
+      ? createElement('p', { className: css.missing }, t('missing'))
       : null,
     PROMPT_FIELDS.map(field => createElement(
       'label',
-      { key: field.key, className: 'itranslation-field' },
-      t(field.labelKey),
+      { key: field.key, className: css.field },
+      createElement('span', { className: css.fieldLabel }, t(field.labelKey)),
       createElement(
         'textarea',
         {
-          className: 'itranslation-prompt-input',
+          className: css.promptInput,
           value: state.value[field.key],
           disabled,
           placeholder: t(field.labelKey),
@@ -75,10 +80,10 @@ export function ItranslationSettingsSection(props: ItranslationSettingsProps): R
       ),
     )),
     createElement(
-      'button',
-      { type: 'button', className: 'itranslation-settings-save', disabled, onClick: controller.save },
+      Button,
+      { variant: 'primary', disabled, className: css.save, onClick: () => { void controller.save() } },
       state.status === 'saving' ? t('saving') : t('save'),
     ),
-    state.error === null ? null : createElement('p', { className: 'itranslation-settings-error' }, state.error),
+    state.error === null ? null : createElement('p', { className: css.error }, state.error),
   )
 }

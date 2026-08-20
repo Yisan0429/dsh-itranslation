@@ -1,0 +1,81 @@
+/* Itranslation Run-card row (D66): mirrors the ToolRow geometry (24px summary
+   line) and resolves every color to --dsw-alias-* theme tokens — no literal
+   colors, no bare --border/--surface/--text-* names. */
+
+.root {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  min-height: 24px;
+  min-width: 0;
+}
+
+/* 16px leading slot for the primitive StateDot (aria-hidden; the row's own
+   title/headline text is the paired status text). */
+.leading {
+  flex: none;
+  width: 16px;
+  height: 16px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  margin-right: 6px;
+}
+
+.title {
+  flex: none;
+  font: var(--dsw-font-markdown-small);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.sep {
+  flex: none;
+  width: 2px;
+  height: 2px;
+  border-radius: 1px;
+  margin: 0 8px;
+  background: var(--dsw-alias-label-caption);
+}
+
+.headline {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font: var(--dsw-font-markdown-small);
+  color: var(--dsw-alias-label-tertiary);
+}
+
+/* Failure and mismatch rows color the headline with their state family. */
+.error .headline {
+  color: var(--dsw-alias-state-error-primary);
+}
+
+.mismatch .headline {
+  color: var(--dsw-alias-state-warn-label);
+}
+
+.inspect {
+  flex: none;
+  margin-left: auto;
+}
+
+.detail {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 2px 0 0 22px;
+  padding: 0;
+  list-style: none;
+}
+
+.detailItem {
+  font: var(--dsw-font-markdown-code-block-small);
+  color: var(--dsw-alias-label-tertiary);
+}

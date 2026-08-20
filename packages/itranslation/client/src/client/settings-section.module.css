@@ -1,0 +1,66 @@
+/* Itranslation settings section (D66): resolves every color to --dsw-alias-*
+   theme tokens — no literal colors, no bare --border/--surface/--text-* names. */
+
+.settings {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.intro {
+  margin: 0;
+  font: var(--dsw-font-xs-13);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.missing {
+  margin: 0;
+  font: var(--dsw-font-xs-13);
+  color: var(--dsw-alias-state-warn-label);
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.fieldLabel {
+  font: var(--dsw-font-xs-strong-13);
+  color: var(--dsw-alias-label-secondary);
+}
+
+.promptInput {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 8px 10px;
+  resize: vertical;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  font: var(--dsw-font-markdown-code-block);
+  color: var(--dsw-alias-label-primary);
+}
+
+.promptInput::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.promptInput:focus {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -1px;
+}
+
+.promptInput:disabled {
+  color: var(--dsw-alias-label-dimmed);
+}
+
+.save {
+  align-self: flex-start;
+}
+
+.error {
+  margin: 0;
+  font: var(--dsw-font-xs-13);
+  color: var(--dsw-alias-state-error-primary);
+}

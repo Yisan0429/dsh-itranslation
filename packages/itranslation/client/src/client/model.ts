@@ -8,18 +8,18 @@ import type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
 
 /** Every deterministic tool registered by `@deepseek-ai/dsh-itranslation-tools` (D58). */
 export const ITRANSLATION_TOOL_NAMES = [
-  'itranslation.prepare',
-  'itranslation.segment',
-  'itranslation.glossary',
-  'itranslation.align',
-  'itranslation.assemble',
+  'itranslation_prepare',
+  'itranslation_segment',
+  'itranslation_glossary',
+  'itranslation_align',
+  'itranslation_assemble',
   'itranslation_status',
 ] as const
 
 type ItranslationToolName = typeof ITRANSLATION_TOOL_NAMES[number]
 
 /** Visual tone of one tool row. */
-type ToolViewTone = 'running' | 'ok' | 'mismatch' | 'error'
+export type ToolViewTone = 'running' | 'ok' | 'mismatch' | 'error'
 
 /** Derived summary consumed by the row component. */
 export interface ToolViewSummary {
@@ -30,11 +30,11 @@ export interface ToolViewSummary {
 }
 
 const TOOL_TITLES: Partial<Record<ItranslationToolName, string>> = {
-  'itranslation.prepare': 'Prepare book',
-  'itranslation.segment': 'Segmentation report',
-  'itranslation.glossary': 'Glossary',
-  'itranslation.align': 'Alignment preview',
-  'itranslation.assemble': 'Assemble book',
+  'itranslation_prepare': 'Prepare book',
+  'itranslation_segment': 'Segmentation report',
+  'itranslation_glossary': 'Glossary',
+  'itranslation_align': 'Alignment preview',
+  'itranslation_assemble': 'Assemble book',
   itranslation_status: 'Translation progress',
 }
 
@@ -196,11 +196,11 @@ export function summarizeToolCall(toolName: string, block: ToolCallBlock): ToolV
   if (!read.ok) return { title, headline: 'Result parse failed', detail: [read.raw], tone: 'error' }
   let body: SummaryBody
   switch (toolName) {
-    case 'itranslation.prepare': body = prepareBody(read.value); break
-    case 'itranslation.segment': body = segmentBody(read.value); break
-    case 'itranslation.glossary': body = glossaryBody(read.value); break
-    case 'itranslation.align': body = alignmentBody(read.value, 'align'); break
-    case 'itranslation.assemble': body = alignmentBody(read.value, 'assemble'); break
+    case 'itranslation_prepare': body = prepareBody(read.value); break
+    case 'itranslation_segment': body = segmentBody(read.value); break
+    case 'itranslation_glossary': body = glossaryBody(read.value); break
+    case 'itranslation_align': body = alignmentBody(read.value, 'align'); break
+    case 'itranslation_assemble': body = alignmentBody(read.value, 'assemble'); break
     case 'itranslation_status': body = statusBody(read.value); break
     default: body = genericBody()
   }
