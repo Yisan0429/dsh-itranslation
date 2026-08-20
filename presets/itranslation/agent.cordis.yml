@@ -1,7 +1,7 @@
 # The `itranslation` agent preset: a translation-production agent derived from
 # the shipped `standard` preset (D60). It keeps the standard coding tool
 # surface (bash, filesystem, jobs, skills, plan mode, compaction, delegation
-# and ask-user/todo) and adds the six deterministic `itranslation.*` tools.
+# and ask-user/todo) and adds the six deterministic `itranslation_*` tools.
 #
 # Local verification mounts `itranslation-tools` by absolute path to the built
 # package entry. After the package is linked/published into the deployment,
@@ -236,8 +236,8 @@
 
 # ── itranslation deterministic tools ────────────────────────────────────────
 
-# Registers six `itranslation.*` tools (prepare/segment/glossary/align/
-# assemble/status) into the host `tools` registry and provides nothing, so no
+# Registers six `itranslation_*` tools (itranslation_prepare/itranslation_segment/
+# itranslation_glossary/itranslation_align/itranslation_assemble/itranslation_status) into the host `tools` registry and provides nothing, so no
 # realm is needed — same pattern as the filesystem tool rows. The package is
 # linked into this deployment for now (D59); after publishing, use the package
 # name `@deepseek-ai/dsh-itranslation-tools` instead of the absolute path.
