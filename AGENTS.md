@@ -1,50 +1,57 @@
 # AGENTS.md
 
-本仓库是 Itranslation（整本书翻译生产线）的 DSH 插件实现。规范唯一来源是 [DEVELOPMENT.md](./DEVELOPMENT.md)，设计唯一依据是 [DESIGN.md](./DESIGN.md)；本文档只给出 agent 工作守则，不新增规范。
+本仓库是 Itranslation（整本书翻译生产线）的 DSH 插件实现。设计看 [DESIGN.md](./DESIGN.md)，规范看 [DEVELOPMENT.md](./DEVELOPMENT.md)；本文档把它们整理成可执行守则，不新增规范。
 
-## 守则（零例外）
+## 一、翻译任务守则（九步工作流）
 
-1. **红线清单**（DEVELOPMENT.md §2.7）：不改 `~/deepseek-harness` 任何文件（只读参考）；不改部署 shipped preset（只复制副本）；无 Python 依赖、不建 subprocess 桥；不绕过 DESIGN.md §6 四类约束；每次翻译运行必产 `meta.json`；不做成本闸；不新增第五份仓库文档。
-2. **代码红线**（§2.4）：访问服务用 `ctx.get(name)` + undefined 检查，`inject` 仅用于硬依赖；一切副作用可逆（`ctx.effect` / `ctx.on` / 官方 disposer）；注册前先 Inspect 查询真实 API；Host/Client 只走 Package 私有 JSON RPC，仅传 lossless JSON；模型调用一律走 DSH `llm` 路由与子代理，禁止自建 API 客户端或硬编码第三方端点。
-3. **决策闸**：任何设计决策变更 → DEVELOPMENT.md「决策日志」追加 D 条目，与代码同提交。确需违反规范时：先追加决策、后修改规范、再动代码。
-4. **覆盖率纪律**：`packages/*/*/src` 逐文件 100%（语句/分支/函数/行）。types-only 文件（`src/types.ts`）豁免；API 桶文件不得退化为纯 re-export（v8 无法度量），需承载真实契约常量。
-5. **提交纪律**：conventional commits；钩子会拦下不合规提交，不要用 `--no-verify` 绕过。
+用户选 Itranslation preset 交书后按此执行（源自 DESIGN §3/D65/D70）。确定性操作必须走插件工具（工具会校验前置产物，不齐即拒绝，D38）；LLM 只出现在预读、翻译、审查、修订，一律走 DSH `llm` 路由与子代理，禁止自建 API 客户端。
 
-## 工作目录约定（D70）
+| 步 | 做什么 | 工具/手段 | 落盘 |
+|---|---|---|---|
+| 0 | 只问目标语言（体裁/风格/术语模式不问） | ask_user_question | —（停点①） |
+| 1a | 录入：读 `input/<书>.md`，识别 `##` 章边界，落原文备份与章结构 | itranslation_prepare | `source/<n>.md`、`state.json` |
+| 1b | 预读：派一个子代理读全书，**直接**写最终 `style.md` 与 `glossary.json`（无草案、无单独统一样式步） | subagent | `style.md`、`glossary.json` |
+| 2 | 术语确认：`glossary.json` 生成后停下，用户可编辑；等确认才翻译 | ask_user_question | —（停点②） |
+| 3 | 分段：只读报告；超长章停下告知，不自动分片、不静默调整 | itranslation_segment | — |
+| 4 | 逐章翻译：一章一个子代理（独立上下文）；任务只注入该章文本，子代理直读 `style.md`/`glossary.json`；译文落盘 | subagent + 文件工具 | `chapters/<n>.md`（超长分片 `<n>.<k>.md`） |
+| 5 | 组装校验：写 `aligned.md` 预览；失配返回 `ok:false` 时停下询问用户 | itranslation_align | `aligned.md` |
+| 6a | 全书审查：独立子代理对照 `source/<n>.md` 按段定位问题，产报告 | subagent | `audit-report.md` |
+| 6b | 报告交用户过目，问是否修订 | ask_user_question | —（停点③） |
+| 7 | 修订：只重译报告指出的问题段（不按章重跑）；术语改动回写并留痕 | subagent + itranslation_glossary | 修订译文、`glossary.json` |
+| 8 | 出成品：须 `state.json`/`chapters/`/`audit-report.md` 齐全；`processes` 记录各 LLM 过程 | itranslation_assemble | `output/<slug>.md`、`meta.json` |
 
-翻译在会话 workspace 的三个固定目录间流转（详见 DESIGN.md §5.5）：
+硬规则：
 
-- `input/` — 用户放入 E2M 转出的 Markdown，`prepare` 从这里取书（`path` 传 `input/<文件>.md`）；
-- `books/<slug>/` — 书级工作目录：`state.json`、`source/<n>.md`、`chapters/<n>.md`（分片 `<n>.<k>.md`）、`glossary.json`、`style.md`、`aligned.md`、`audit-report.md`、`meta.json`；
-- `output/<slug>.md` — 最终成品（`assemble` 写入，books/ 中不含成品）。
+- **每次运行必产 `meta.json`**；中断后回原会话继续，跨会话不自动恢复（D36）。
+- 术语表一经确认即锁定；修订改动必须回写并留痕。
+- 工作目录：`input/` 进、`books/<slug>/` 工作、`output/<slug>.md` 出（D70）。
 
-六个模型可见工具统一下划线命名（D67）：`itranslation_prepare` / `itranslation_segment` / `itranslation_glossary` / `itranslation_align` / `itranslation_assemble` / `itranslation_status`。LLM 四处（预读/翻译/审查/修订）不在工具面，由 agent 直接调 DSH `llm` 服务与子代理完成（D26）。
+工具速查（下划线命名，D67）：`itranslation_prepare` 录入 / `itranslation_segment` 分段报告 / `itranslation_glossary` 术语表 / `itranslation_align` 组装校验 / `itranslation_assemble` 出成品 / `itranslation_status` 进度摘要（随时可查）。
 
-## 常用命令（根目录）
+## 二、仓库开发守则（零例外）
+
+1. **红线**（DEVELOPMENT §2.7）：不改 `~/deepseek-harness`（只读参考）；不改部署 shipped preset（复制副本）；无 Python 依赖、不建 subprocess 桥；不绕过 DESIGN §6 四类约束；不做成本闸；不新增第五份仓库文档。
+2. **代码红线**（§2.4）：访问服务 `ctx.get(name)` + undefined 检查，`inject` 仅硬依赖；副作用可逆（`ctx.effect`/`ctx.on`/官方 disposer）；注册前先 Inspect 查真实 API；Host/Client 只走私有 JSON RPC、只传 lossless JSON；模型调用走 DSH `llm` 路由与子代理。
+3. **决策闸**：设计决策变更 → DEVELOPMENT「决策日志」追加 D 条目，与代码同提交；确需违规，先加决策、后改规范、再动代码。
+4. **覆盖率纪律**：`packages/*/*/src` 逐文件 100%（语句/分支/函数/行）；types-only（`src/types.ts`）豁免；API 桶文件承载真实契约常量，不得退化为纯 re-export。
+5. **提交纪律**：conventional commits；钩子会拦不合规提交，不要用 `--no-verify` 绕过。
+
+## 三、命令与工程约定速查
 
 ```bash
-pnpm install            # 依赖 + 自动安装 git 钩子
+pnpm install            # 依赖 + git 钩子
 pnpm run build          # 双面构建（tsc -b + tsdown）
 pnpm run typecheck      # host + client 聚合类型检查
-pnpm run lint           # oxlint；pnpm run lint:fix 自动修复
+pnpm run lint           # oxlint；lint:fix 自动修复
 pnpm run test:coverage  # 单测 + 逐文件 100% 覆盖率闸
 pnpm run hygiene        # knip + publint（先 build）
-pnpm run duplication    # jscpd 重复代码
-node scripts/install-web-deploy.mjs [--apply]  # web 部署链入 dry-run/落盘（幂等）
+pnpm run duplication    # jscpd
+node scripts/install-web-deploy.mjs [--apply]  # web 部署链入（幂等）
 ```
 
-## 工程约定速览
-
-- **双面构建**：Host 面 `tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host`；Client 面同理。client 包的 `tsdown.config.ts` 替换 workspace 默认，必须同时重述 node 半边与 browser 半边（浏览器 bundle 经共享 `clientBundle` preset 产出，D66）。
-- **测试归属**：client 包浏览器侧测试放 `packages/itranslation/client/tests/*.client.spec.ts`（host 聚合排除、client 聚合包含），其余测试归 host 聚合；覆盖率闸逐文件 100%。
-- **pnpm store**：`.npmrc` 把 store 指向仓库内 `.pnpm-store/`（沙箱适配），不要删掉这行后带 `node_modules` 状态提交。
-- **harness 对齐**：版本组合（Node/pnpm/TS6/oxlint/tsdown/vitest）与 harness 保持一致；DSH 包以 `link:` devDependencies 指向 `~/deepseek-harness` 已构建包（只读引用，红线 1/2）；不确定的约定先查 `~/deepseek-harness`（只读），再写实现。
-- **client 设置页**：`itranslation` 命名空间注册在 client 包 Host 半边（D68）；浏览器经插件自有同源路由 `/_dsh/itranslation/settings` 读写（D69，浏览器 settings 线有 apiproxy 白名单、插件命名空间不可达）；视觉对齐 harness 设计语言（D66）：`*.module.css` + `--dsw-alias-*` token，禁止手写 `className` 或绕开 CSS Module 管线。
-
-## 当前里程碑
-
-- `core`：确定性引擎。`slugify`（D42）、`segmentParagraphs`/`countSentences`（D22/D24）、`detectChapters`/`normalizeMarkdown`/`createBookState`/`assembleBook`（D56/D57）；书籍先经 E2M 转 Markdown，书名 `#`、章 `##`、节 `###`；`state.json` 只记章结构，组装按原文/译文空行比对段数，失配抛错由工具层询问。
-- `tools`：六个确定性工具（D58）与书级状态文件；输入经 `input/`、成品经 `output/`（D70）。
-- `client`：Run 卡进度（keyed `tool.call.toolview`×6）与提示词设置页（四个 LLM 提示词文本框，D61/D65）；设置命名空间注册在 client Host 半边（D68）、经插件自有路由读写（D69）。
-- 部署链入：host 六工具经 preset 绝对路径行挂载、client 浏览器半边经部署端 file: 依赖 + cordis.patch.yml insert 进入模块表（D63/D64），3080 可用。
-- 里程碑验收（D39）：样本短书跑通九步冒烟并产出 `meta.json`，当场人工检查、不存档——唯一未闭合里程碑。
+- **双面构建**：Host 面 `tsc -b tsconfig.host.json && tsdown --env.DSH_BUILD_FACE host`；Client 面同理；client 包 tsdown 用共享 `clientBundle` preset（D66）。
+- **测试归属**：client 浏览器侧测试 `packages/itranslation/client/tests/*.client.spec.ts`（host 聚合排除、client 聚合包含），其余归 host 聚合。
+- **pnpm store**：`.npmrc` 指向仓库内 `.pnpm-store/`（沙箱适配），别删这行带 node_modules 提交。
+- **harness 对齐**：版本组合与 harness 一致；DSH 包用 `link:` devDependencies 指 `~/deepseek-harness` 已构建包（只读）；不确定先查 harness 再写实现。
+- **client 设置页**：命名空间注册在 client Host 半边（D68）；浏览器经 `/_dsh/itranslation/settings` 读写（D69）；视觉对齐 harness 设计语言（D66，`--dsw-alias-*` token）。
+- **当前状态**：引擎/工具/UI/部署均已落地；唯一未闭合为端到端冒烟验收（D39，当场人工检查不存档）。
