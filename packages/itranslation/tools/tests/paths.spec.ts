@@ -8,6 +8,7 @@ import {
   chaptersDirRel,
   fragmentRel,
   glossaryRel,
+  inputDirRel,
   metaRel,
   outputRel,
   sourceRel,
@@ -33,7 +34,11 @@ describe('paths', () => {
     expect(auditRel('s')).toBe('books/s/audit-report.md')
     expect(alignedRel('s')).toBe('books/s/aligned.md')
     expect(metaRel('s')).toBe('books/s/meta.json')
-    expect(outputRel('s')).toBe('books/s/s.md')
+  })
+
+  it('places the user input folder and the final artifact under input/ and output/ (D70)', () => {
+    expect(inputDirRel()).toBe('input')
+    expect(outputRel('s')).toBe('output/s.md')
   })
 
   it('derives a title from a file path, stripping one extension', () => {

@@ -1,14 +1,21 @@
 /**
  * Pure book-directory path helpers. Every path is RELATIVE to the session
  * workspace root (`exec.agent.session.header.cwd`, D31), matching the
- * `<cwd>/books/<slug>/` layout in DESIGN.md §5.5. `slugify` comes from the
- * deterministic core engine (D42).
+ * `<cwd>/books/<slug>/` layout in DESIGN.md §5.5 (D70: user input arrives
+ * under `<cwd>/input/` and the final artifact lands under `<cwd>/output/`).
+ * `slugify` comes from the deterministic core engine (D42).
  */
 
 import { slugify } from '@deepseek-ai/dsh-itranslation-core'
 
 /** Top-level books directory under the session workspace root (DESIGN.md §5.5). */
 const BOOKS_DIR = 'books'
+
+/** User input directory: E2M-produced Markdown books the user drops here (D70). */
+const INPUT_DIR = 'input'
+
+/** Final-artifact directory: assembled `<slug>.md` only (D70). */
+const OUTPUT_DIR = 'output'
 
 /** Deterministic directory slug for a book title (D42). */
 export function bookSlug(title: string): string {
@@ -70,9 +77,14 @@ export function metaRel(slug: string): string {
   return `${bookDirRel(slug)}/meta.json`
 }
 
-/** Final Markdown output path (slug-named file, title recorded inside). */
+/** User input directory path, relative to the session workspace root (D70). */
+export function inputDirRel(): string {
+  return INPUT_DIR
+}
+
+/** Final Markdown output path (slug-named file under `output/`, D70). */
 export function outputRel(slug: string): string {
-  return `${bookDirRel(slug)}/${slug}.md`
+  return `${OUTPUT_DIR}/${slug}.md`
 }
 
 /**

@@ -2,7 +2,8 @@
  * `itranslation_assemble` — deterministic final output + evidence chain
  * (DESIGN.md §3 step 8): requires `state.json`, `chapters/`, and
  * `audit-report.md` (D38), re-assembles from current chapters, and writes the
- * final Markdown (`<slug>.md`) plus `meta.json` (D34).
+ * final Markdown to `output/<slug>.md` (D70) plus `meta.json` (D34) inside
+ * the book directory.
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -22,7 +23,7 @@ export function applyAssemble(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'itranslation_assemble',
     description: '确定性出成品 + 证据链：须 state.json、chapters/、audit-report.md 齐全（D38），'
-      + '重组装全书并写成品 <slug>.md 与 meta.json（可选 processes 记录各 LLM 过程）。段数失配返回结构化 ok:false。',
+      + '重组装全书并写成品 output/<slug>.md（D70）与 meta.json（可选 processes 记录各 LLM 过程）。段数失配返回结构化 ok:false。',
     parameters: {
       slug: {
         type: 'string',

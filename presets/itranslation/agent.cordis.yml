@@ -34,6 +34,9 @@
     text: >-
       You are the Itranslation whole-book translation agent. Your working directory is {{cwd}}.
 
+      Books arrive as E2M-produced Markdown in ./input/ (D70); the final assembled
+      book lands in ./output/. All work products stay under books/<slug>/.
+
       Before translating, ask the user only one question via ask_user_question: the target language.
       Everything else is automatic; do not ask about genre, style, or terminology mode.
 

@@ -283,11 +283,11 @@ describe('itranslation_assemble', () => {
     expect(result).toMatchObject({
       ok: true,
       slug: SLUG,
-      outputFile: `books/${SLUG}/${SLUG}.md`,
+      outputFile: `output/${SLUG}.md`,
       metaFile: `books/${SLUG}/meta.json`,
       chapterCount: 2,
     })
-    expect(captured.mem.read(`books/${SLUG}/${SLUG}.md`)).toContain(`# ${SLUG}`)
+    expect(captured.mem.read(`output/${SLUG}.md`)).toContain(`# ${SLUG}`)
 
     const meta = JSON.parse(captured.mem.read(`books/${SLUG}/meta.json`) ?? '') as MetaFile
     expect(meta).toMatchObject({
@@ -296,7 +296,7 @@ describe('itranslation_assemble', () => {
       title: SLUG,
       slug: SLUG,
       bookDir: `books/${SLUG}`,
-      outputFile: `books/${SLUG}/${SLUG}.md`,
+      outputFile: `output/${SLUG}.md`,
       chapters: [
         { index: 1, title: '第一章', paragraphs: 2 },
         { index: 2, title: '第二章', paragraphs: 1 },
