@@ -1,10 +1,15 @@
 {
-  "extends": "../../../tsconfig.base.client.json",
-  "compilerOptions": {
-    "rootDir": "src",
-    "outDir": "lib/types"
-  },
-  "include": [
-    "src"
+  // Split-face package (harness api-remotes pattern): the Host face compiles
+  // the node loader entry + settings registration + web route (node types);
+  // the Client face compiles the browser bundle sources (browser purity,
+  // `types: []`). Both faces share lib/types but keep separate tsbuildinfo.
+  "files": [],
+  "references": [
+    {
+      "path": "./tsconfig.host.json"
+    },
+    {
+      "path": "./tsconfig.client.json"
+    }
   ]
 }

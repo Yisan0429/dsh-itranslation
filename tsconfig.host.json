@@ -11,11 +11,13 @@
     "packages/*/*/tests/**/*.ts"
   ],
   "exclude": [
-    "packages/itranslation/client/tests/**"
+    // Browser specs of the client package type-check in tsconfig.client.json;
+    // its host-face specs (web-settings, host-entry) stay in this aggregate.
+    "packages/itranslation/client/tests/**/*.client.spec.ts"
   ],
   "references": [
     { "path": "./packages/itranslation/core" },
     { "path": "./packages/itranslation/tools" },
-    { "path": "./packages/itranslation/client" }
+    { "path": "./packages/itranslation/client/tsconfig.host.json" }
   ]
 }

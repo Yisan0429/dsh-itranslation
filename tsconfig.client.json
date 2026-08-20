@@ -1,5 +1,7 @@
 {
-  // Client-side typecheck aggregate: tests of the client package.
+  // Client-side typecheck aggregate: browser specs of the client package
+  // (`*.client.spec.ts`, harness convention). Host-face specs (web-settings,
+  // host-entry) are typechecked by the Host aggregate instead.
   "extends": "./tsconfig.base.client.json",
   "compilerOptions": {
     "noEmit": true,
@@ -9,9 +11,9 @@
     "types": ["node"]
   },
   "include": [
-    "packages/itranslation/client/tests/**/*.ts"
+    "packages/itranslation/client/tests/**/*.client.spec.ts"
   ],
   "references": [
-    { "path": "./packages/itranslation/client" }
+    { "path": "./packages/itranslation/client/tsconfig.client.json" }
   ]
 }

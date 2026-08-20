@@ -1,7 +1,6 @@
 // @vitest-environment jsdom
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
 import { describe, expect, it, vi } from 'vitest'
-import { apply as applyHost, clientNodeEntry } from '../src/index'
 import { apply, inject, name } from '../src/client/index'
 import { ITRANSLATION_TOOL_NAMES } from '../src/client/model'
 
@@ -15,6 +14,11 @@ interface Registration {
     inject?: () => unknown
   }
   component: unknown
+}
+
+interface SettingsControllerFace {
+  store: { getSnapshot(): { status: string }; set(snapshot: { status: string }): void }
+  load(): Promise<void>
 }
 
 function createContext() {
@@ -39,14 +43,18 @@ function createContext() {
   }
   const t = vi.fn((key: keyof typeof en) => en[key])
   const locale = { register: vi.fn(), bind: vi.fn(() => t) }
-  const api = { settings: { describe: vi.fn(), update: vi.fn() } }
-  const get = vi.fn((_service: string) => ({ api }))
-  const on = vi.fn(() => vi.fn())
+  const handlers = new Map<string, (() => void)[]>()
+  const on = vi.fn((event: string, handler: () => void) => {
+    const list = handlers.get(event) ?? []
+    list.push(handler)
+    handlers.set(event, list)
+    return vi.fn()
+  })
   const ctx = {
-    slots, locale, get, on,
+    slots, locale, on,
     effect: (setup: () => unknown) => { setup(); return vi.fn() },
   } as unknown as ClientContext
-  return { ctx, setups, registrations, api, get, locale }
+  return { ctx, setups, registrations, locale, handlers }
 }
 
 function runSetups(setups: Map<string, Array<() => unknown>>, slotName: string): void {
@@ -59,16 +67,6 @@ function runSetups(setups: Map<string, Array<() => unknown>>, slotName: string):
     }
   }
 }
-
-describe('client package host entry', () => {
-  it('exposes the node entry placeholder', () => {
-    expect(clientNodeEntry).toBe('itranslation-client-node')
-  })
-
-  it('provides a no-op host apply so the Loader accepts it as an entry', () => {
-    expect(() =>{  applyHost() }).not.toThrow()
-  })
-})
 
 describe('client browser plugin', () => {
   it('declares its identity and services', () => {
@@ -85,7 +83,7 @@ describe('client browser plugin', () => {
   })
 
   it('registers the settings section with a working inject face', () => {
-    const { ctx, setups, registrations, get, locale } = createContext()
+    const { ctx, setups, registrations, locale } = createContext()
     apply(ctx)
     runSetups(setups, 'settings.section')
     const section = registrations.find(registration => registration.options.name === 'settings.section')
@@ -101,8 +99,24 @@ describe('client browser plugin', () => {
     expect(typeof injectFace?.controller).toBe('object')
     expect(typeof injectFace?.useSnapshot).toBe('function')
     expect(typeof injectFace?.t).toBe('function')
-    expect(get).toHaveBeenCalledWith('connection')
     expect(locale.register).toHaveBeenCalled()
     expect(locale.bind).toHaveBeenCalled()
+  })
+
+  it('reloads an already-loaded settings page on connection reset and skips an idle one', () => {
+    const { ctx, setups, registrations, handlers } = createContext()
+    apply(ctx)
+    runSetups(setups, 'settings.section')
+    const section = registrations.find(registration => registration.options.name === 'settings.section')
+    const injectFace = section?.options.inject?.() as { controller?: SettingsControllerFace } | undefined
+    const controller = injectFace!.controller!
+    // Idle branch: the page never loaded, so a reset must not re-read.
+    const idleLoad = vi.spyOn(controller, 'load').mockResolvedValue(undefined)
+    for (const handler of handlers.get('connection/reset') ?? []) handler()
+    expect(idleLoad).not.toHaveBeenCalled()
+    // Ready branch: a loaded page refreshes from the Host.
+    controller.store.set({ ...controller.store.getSnapshot(), status: 'ready' })
+    for (const handler of handlers.get('connection/reset') ?? []) handler()
+    expect(idleLoad).toHaveBeenCalled()
   })
 })

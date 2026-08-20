@@ -41,7 +41,7 @@ function malformed(raw: string): ToolCallBlock {
 describe('toolTitle', () => {
   it('maps known tools to Chinese labels', () => {
     expect(toolTitle('itranslation_status')).toBe('Translation progress')
-    expect(toolTitle('itranslation.prepare')).toBe('Prepare book')
+    expect(toolTitle('itranslation_prepare')).toBe('Prepare book')
   })
 
   it('falls back to the wire name for unknown tools', () => {
@@ -109,7 +109,7 @@ describe('summarizeToolCall', () => {
 
   it('summarizes prepare', () => {
     const value = { title: '示例书', slug: 'shi-li-shu', chapters: [{ index: 1, title: '第一章' }] }
-    expect(summarizeToolCall('itranslation.prepare', settled(value))).toEqual({
+    expect(summarizeToolCall('itranslation_prepare', settled(value))).toEqual({
       title: 'Prepare book',
       headline: '示例书',
       detail: ['Book dir: books/shi-li-shu', 'Chapters: 1'],
@@ -118,72 +118,72 @@ describe('summarizeToolCall', () => {
   })
 
   it('summarizes prepare with defaults when fields are missing', () => {
-    expect(summarizeToolCall('itranslation.prepare', settled({}))).toEqual({
+    expect(summarizeToolCall('itranslation_prepare', settled({}))).toEqual({
       title: 'Prepare book', headline: 'Prepared', detail: ['Chapters: 0'], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation.prepare', settled(null))).toEqual({
+    expect(summarizeToolCall('itranslation_prepare', settled(null))).toEqual({
       title: 'Prepare book', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes segment with and without overlong chapters', () => {
     const full = { chapters: [{ index: 1, paragraphs: 2 }], overlongChapters: [3, 5] }
-    expect(summarizeToolCall('itranslation.segment', settled(full))).toEqual({
+    expect(summarizeToolCall('itranslation_segment', settled(full))).toEqual({
       title: 'Segmentation report', headline: '1 chapters', detail: ['Overlong chapters: 3, 5'], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation.segment', settled({}))).toEqual({
+    expect(summarizeToolCall('itranslation_segment', settled({}))).toEqual({
       title: 'Segmentation report', headline: '0 chapters', detail: [], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation.segment', settled(null))).toEqual({
+    expect(summarizeToolCall('itranslation_segment', settled(null))).toEqual({
       title: 'Segmentation report', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes glossary', () => {
-    expect(summarizeToolCall('itranslation.glossary', settled({ entries: [{ term: 'user' }] }))).toEqual({
+    expect(summarizeToolCall('itranslation_glossary', settled({ entries: [{ term: 'user' }] }))).toEqual({
       title: 'Glossary', headline: '1 terms', detail: [], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation.glossary', settled({}))).toEqual({
+    expect(summarizeToolCall('itranslation_glossary', settled({}))).toEqual({
       title: 'Glossary', headline: '0 terms', detail: [], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation.glossary', settled(null))).toEqual({
+    expect(summarizeToolCall('itranslation_glossary', settled(null))).toEqual({
       title: 'Glossary', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes successful align and assemble', () => {
-    expect(summarizeToolCall('itranslation.align', settled({ ok: true }))).toEqual({
+    expect(summarizeToolCall('itranslation_align', settled({ ok: true }))).toEqual({
       title: 'Alignment preview', headline: 'Aligned 0 chapters', detail: [], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation.assemble', settled({ ok: true, outputFile: 'books/x/x.md' }))).toEqual({
+    expect(summarizeToolCall('itranslation_assemble', settled({ ok: true, outputFile: 'books/x/x.md' }))).toEqual({
       title: 'Assemble book', headline: 'Book assembled', detail: ['Output: books/x/x.md'], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation.assemble', settled({ ok: true }))).toEqual({
+    expect(summarizeToolCall('itranslation_assemble', settled({ ok: true }))).toEqual({
       title: 'Assemble book', headline: 'Book assembled', detail: [], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation.align', settled(null))).toEqual({
+    expect(summarizeToolCall('itranslation_align', settled(null))).toEqual({
       title: 'Alignment preview', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 
   it('summarizes mismatch with and without detail', () => {
     const value = { ok: false, mismatch: { chapterIndex: 2, expected: 5, actual: 6 }, message: '段数失配' }
-    expect(summarizeToolCall('itranslation.align', settled(value))).toEqual({
+    expect(summarizeToolCall('itranslation_align', settled(value))).toEqual({
       title: 'Alignment preview',
       headline: 'Alignment mismatch',
       detail: ['Chapter 2: expected 5, got 6', '段数失配'],
       tone: 'mismatch',
     })
-    expect(summarizeToolCall('itranslation.assemble', settled({ ok: false }))).toEqual({
+    expect(summarizeToolCall('itranslation_assemble', settled({ ok: false }))).toEqual({
       title: 'Assemble book', headline: 'Assembly mismatch', detail: [], tone: 'mismatch',
     })
-    expect(summarizeToolCall('itranslation.align', settled({ ok: false, mismatch: {} }))).toEqual({
+    expect(summarizeToolCall('itranslation_align', settled({ ok: false, mismatch: {} }))).toEqual({
       title: 'Alignment preview', headline: 'Alignment mismatch', detail: ['Chapter ?: expected ?, got ?'], tone: 'mismatch',
     })
   })
 
   it('falls back to generic for a non-boolean ok field', () => {
-    expect(summarizeToolCall('itranslation.align', settled({ ok: 'yes' }))).toEqual({
+    expect(summarizeToolCall('itranslation_align', settled({ ok: 'yes' }))).toEqual({
       title: 'Alignment preview', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
@@ -204,8 +204,8 @@ describe('summarizeToolCall', () => {
   })
 
   it('falls back to generic for unknown parsed tools', () => {
-    expect(summarizeToolCall('itranslation.unknown', settled({ ok: true }))).toEqual({
-      title: 'itranslation.unknown', headline: 'Completed', detail: [], tone: 'ok',
+    expect(summarizeToolCall('itranslation_unknown', settled({ ok: true }))).toEqual({
+      title: 'itranslation_unknown', headline: 'Completed', detail: [], tone: 'ok',
     })
   })
 

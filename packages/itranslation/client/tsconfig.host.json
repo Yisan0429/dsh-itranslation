@@ -1,0 +1,16 @@
+{
+  // Host face of the split client package: the node loader entry, the
+  // settings namespace registration, and the plugin-owned web route. Node
+  // types come from the host base; no browser purity claims here.
+  "extends": "../../../tsconfig.base.json",
+  "compilerOptions": {
+    "rootDir": "src",
+    "outDir": "lib/types",
+    "tsBuildInfoFile": "lib/tsconfig.host.tsbuildinfo"
+  },
+  "files": [
+    "src/index.ts",
+    "src/settings.ts",
+    "src/web-settings.ts"
+  ]
+}
