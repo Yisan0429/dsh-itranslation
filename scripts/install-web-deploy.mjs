@@ -64,8 +64,12 @@ if (!existsSync(profilePkgPath)) {
 if (!existsSync(patchPath)) {
   fail(`profile patch 不存在：${patchPath}（请确认 DSH web profile 已初始化）`)
 } else {
-  const patchDeps = YAML ? parsePatch() : undefined
-  const already = patchDeps?.some(e => e?.name === clientName) ?? false
+  // 幂等检测不依赖 YAML 库（仓库内未安装 js-yaml/yaml，createRequire 解析不到）：
+  // 直接按文本查 name 行，覆盖本脚本写入的单引号/双引号两种形态。patch 顶层元素
+  // 是 { insert: [...] } 包装、id-targeted 条目又无 name，查顶层 name 恒为 false，
+  // 曾导致每次 --apply 都重复追加 insert。
+  const patchText = readFileSync(patchPath, 'utf8')
+  const already = patchText.includes(`name: '${clientName}'`) || patchText.includes(`name: "${clientName}"`)
   if (already) {
     log(`cordis.patch.yml 已含 ${clientName} entry，跳过`)
   } else {
@@ -94,12 +98,6 @@ function patchFile(path, content) {
     console.error(`[install-web-deploy] 无法写入 ${path}：${error.code === 'EROFS' ? '当前在只读沙箱内（profile 目录不可写）。请在 3080 服务所在终端的普通 shell 里运行本脚本 --apply。' : error.message}`)
     process.exit(1)
   }
-}
-
-function parsePatch() {
-  const text = readFileSync(patchPath, 'utf8')
-  const data = YAML.load(text)
-  return Array.isArray(data) ? data : []
 }
 
 function appendPatch(insertYaml) {
