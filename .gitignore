@@ -3,5 +3,6 @@ lib/
 dist/
 coverage/
 .pnpm-store/
+archive/
 *.tsbuildinfo
 .DS_Store
