@@ -201,9 +201,11 @@ Itranslation 作为 DSH 插件的核心理念只有两条：
 
 预读、翻译、审查、修订四个 LLM 过程**不在工具面**——由 agent 直接调 DSH `llm` 服务与 `subagent` 工具完成（D26）；插件工具只负责确定性文本层与书级状态文件。
 
-### 5.5 书级目录（产物与证据）
+### 5.5 目录约定（输入、书级工作目录、成品，D70）
 
-书级目录 `<会话 workspace>/books/<slug>/`（会话 workspace = 该会话 `SessionHeader.cwd`，逐会话、非全局唯一；运行时经 `exec.agent.session.header.cwd` 或 `ctx.agents.get(id)?.session.header.cwd` 获取；沙箱 `workspace-write` 的写边界即此根，`books/` 落在其下可被 agent 文件工具读写）；`cwd` 为可选字段，取不到时 `prepare` 拒绝开始并提示用户先配置工作目录（D46）：
+- **输入**：用户把 E2M 转出的 Markdown 放入 `<会话 workspace>/input/`，`prepare` 从这里取书（`path` 传 `input/<文件>.md`）。
+- **书级工作目录** `<会话 workspace>/books/<slug>/`（会话 workspace = 该会话 `SessionHeader.cwd`，逐会话、非全局唯一；运行时经 `exec.agent.session.header.cwd` 或 `ctx.agents.get(id)?.session.header.cwd` 获取；沙箱 `workspace-write` 的写边界即此根，`books/` 落在其下可被 agent 文件工具读写）；`cwd` 为可选字段，取不到时 `prepare` 拒绝开始并提示用户先配置工作目录（D46）：
+- **成品**：`assemble` 把最终 Markdown 写入 `<会话 workspace>/output/<slug>.md`（books/ 中不含成品）。
 
 `slug = slugify(书名)`（D42）：NFKC 规范化 → 仅折叠符号（Unicode 字母数字保留，中文不折叠）→ 空白折叠为 `-` → 禁路径分隔符/通配符与控制字符、规避 `.`/`..` 与 Windows 保留名 → 统一小写 → 截断 ≤ 200 字符。slug 不与书名可逆绑定，原始书名与生成输入写入 `meta.json`。
 
@@ -217,7 +219,7 @@ Itranslation 作为 DSH 插件的核心理念只有两条：
 | `source/<n>.md` | 清理后原文备份（第 1 步产物，审查/修订依据与存档） |
 | `chapters/<n>.md`、`chapters/<n>.<k>.md` | 各章译文（子代理直接落盘；超长章分片为 `<n>.<k>`，D48） |
 | `audit-report.md` | 全书审查报告 |
-| `meta.json` | 证据链：配置、各过程模型、耗时、token、审查与修订记录 |
+| `meta.json` | 证据链：配置、各过程模型、耗时、token、审查与修订记录（成品路径记录在 `outputFile` 字段） |
 
 **进度与中断（D23/D36）**：无需自建断点续跑——DSH 会话本身持久记录全部过程，中断不影响会话记录。恢复=回到**原会话**继续（agent 依据会话记录知道已完成哪些章；各章子会话记录经会话读取可查，D30）；跨会话不自动恢复，新会话视为重新交书（D36）。
 
