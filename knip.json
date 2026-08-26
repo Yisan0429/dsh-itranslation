@@ -19,12 +19,11 @@
       ]
     },
     "packages/itranslation/client": {
-      "ignoreDependencies": [
-        // lightningcss is consumed only by the shared clientBundle preset
-        // (imported read-only from ~/deepseek-harness, D66), never by this
-        // repo's own source.
-        "lightningcss"
-      ]
+      "ignoreIssues": {
+        "tsdown.preset.ts": [
+          "exports"
+        ]
+      }
     }
   }
 }

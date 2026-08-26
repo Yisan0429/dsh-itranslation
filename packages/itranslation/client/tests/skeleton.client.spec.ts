@@ -94,10 +94,14 @@ describe('client browser plugin', () => {
     const label = section?.options.label
     expect(typeof label).toBe('function')
     expect((label as () => string)()).toBe('Itranslation')
-    const injectFace = section?.options.inject?.() as Record<string, unknown> | undefined
+    const injectFace = section?.options.inject?.() as {
+      controller?: { store: unknown }
+      hooks?: { snapshot?: unknown }
+      t?: unknown
+    } | undefined
     expect(injectFace).toBeDefined()
     expect(typeof injectFace?.controller).toBe('object')
-    expect(typeof injectFace?.useSnapshot).toBe('function')
+    expect(injectFace?.hooks?.snapshot).toBe(injectFace?.controller?.store)
     expect(typeof injectFace?.t).toBe('function')
     expect(locale.register).toHaveBeenCalled()
     expect(locale.bind).toHaveBeenCalled()

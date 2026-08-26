@@ -77,9 +77,6 @@ importers:
       '@deepseek-ai/dsh-client-ui-tool':
         specifier: link:../../../../deepseek-harness/packages/client/ui-tool
         version: link:../../../../deepseek-harness/packages/client/ui-tool
-      '@deepseek-ai/dsh-client-web-react':
-        specifier: link:../../../../deepseek-harness/packages/client/web-react
-        version: link:../../../../deepseek-harness/packages/client/web-react
       '@deepseek-ai/dsh-host-webserver':
         specifier: link:../../../../deepseek-harness/packages/host/webserver
         version: link:../../../../deepseek-harness/packages/host/webserver

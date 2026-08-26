@@ -10,9 +10,9 @@
 
 import { createElement } from 'react'
 import type { ChangeEvent, ReactElement } from 'react'
-import type { SnapshotSelectorHook } from '@deepseek-ai/dsh-client-web-react'
+import type { InjectFace } from '@deepseek-ai/dsh-client-ui-slots'
 import { Button } from '@deepseek-ai/dsh-client-ui-primitives'
-import type { ItranslationSettingsController, ItranslationSettingsState } from './settings-store'
+import type { ItranslationSettingsController } from './settings-store'
 import type { SettingsKey } from './settings-locales'
 import css from './settings-section.module.css'
 
@@ -20,14 +20,16 @@ import css from './settings-section.module.css'
 export interface ItranslationSettingsInjected {
   /** The page controller (loads on mount, saves through the wire). */
   controller: ItranslationSettingsController
-  /** uSES subscription hook bound to the controller store. */
-  useSnapshot: SnapshotSelectorHook<ItranslationSettingsState>
+  /** Store source bound by the UI renderer as useSnapshot. */
+  hooks: {
+    snapshot: ItranslationSettingsController['store']
+  }
   /** Section copy. */
   t: (key: SettingsKey) => string
 }
 
 /** Props delivered by the slot outlet: the inject face spread flat. */
-export type ItranslationSettingsProps = Partial<ItranslationSettingsInjected>
+export type ItranslationSettingsProps = Partial<InjectFace<ItranslationSettingsInjected>>
 
 const PROMPT_FIELDS = [
   { key: 'preReadPrompt', labelKey: 'preRead' },
@@ -45,7 +47,7 @@ const SETTERS = {
 
 /**
  * Render the settings section.
- * @param props - the inject face carrying controller/useSnapshot/t.
+ * @param props - the inject face carrying controller/hooks.snapshot (rendered as useSnapshot)/t.
  * @returns the section, or null while the shell has not injected yet.
  */
 export function ItranslationSettingsSection(props: ItranslationSettingsProps): ReactElement | null {

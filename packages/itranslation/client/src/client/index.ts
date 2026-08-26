@@ -4,11 +4,10 @@
  * (the Run card progress surface) and the settings page for the four LLM
  * prompt templates. Mirrors the harness `ui-settings-models` registration
  * shape: locale dictionaries, `settings.section` slot injection, and an
- * inject face carrying controller/useSnapshot/t.
+ * inject face carrying controller/hooks.snapshot (rendered as useSnapshot)/t.
  */
 
 import type { ClientContext } from '@deepseek-ai/dsh-client-runtime/client'
-import { bindSnapshotSelector } from '@deepseek-ai/dsh-client-web-react'
 // Type-only: pulls the keyed `tool.call.toolview` SlotMap declaration.
 import type {} from '@deepseek-ai/dsh-client-ui-tool/client'
 // Type-only: pulls the `settings.section` SlotMap declaration.
@@ -54,11 +53,10 @@ export function apply(ctx: ClientContext): void {
   // The page reaches the Host namespace through the plugin-owned settings
   // route (D69): the browser settings wire only serves allowlisted namespaces.
   const controller = new ItranslationSettingsController(createItranslationSettingsApi())
-  const useSnapshot = bindSnapshotSelector(controller.store)
   const t = ctx.locale.bind(NS) as ItranslationSettingsInjected['t']
   const injected = (): ItranslationSettingsInjected => ({
     controller,
-    useSnapshot,
+    hooks: { snapshot: controller.store },
     t,
   })
 
