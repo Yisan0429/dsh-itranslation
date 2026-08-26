@@ -6,3 +6,4 @@ coverage/
 archive/
 *.tsbuildinfo
 .DS_Store
+reference.md

@@ -126,3 +126,61 @@ describe('assembleBook', () => {
     ).toThrow(TranslationMismatchError)
   })
 })
+
+describe('assemble with title translations', () => {
+  const titles = new Map([
+    ['测试书', '译名书'],
+    ['第一章', '译名第一章'],
+    ['第二章', '译名第二章'],
+  ])
+
+  it('translates the ## heading of a chapter through the map', () => {
+    expect(assembleChapter(chapterState(), SOURCE, '第一段译文。\n\n第二段译文！', titles)).toBe(
+      '## 译名第一章\n\n第一段译文。\n\n第二段译文！',
+    )
+  })
+
+  it('translates the # book title and ## chapter headings in assembleBook', () => {
+    const bookState = createBookState('## 第一章\n\n第一段。\n\n## 第二章\n\n第三段。', '测试书')
+    const markdown = assembleBook(
+      bookState,
+      ['第一段。', '第三段。'],
+      ['第一章译文。', '第二章译文。'],
+      titles,
+    )
+    expect(markdown).toBe('# 译名书\n\n## 译名第一章\n\n第一章译文。\n\n## 译名第二章\n\n第二章译文。')
+  })
+
+  it('keeps raw titles when the map carries no entry', () => {
+    expect(assembleChapter(chapterState(), SOURCE, '第一段译文。\n\n第二段译文！', new Map())).toBe(
+      '## 第一章\n\n第一段译文。\n\n第二段译文！',
+    )
+  })
+
+  it('drops the title-as-body paragraph of the empty-title first chapter', () => {
+    // Source chapter 1 body = the `# <book title>` line plus an intro; its
+    // translation mirrors that. Assembly must emit the book-title line once.
+    const bookState = createBookState(
+      '# 测试书\n\n简介。\n\n## 第一章\n\n第一段。',
+      '测试书',
+    )
+    const markdown = assembleBook(
+      bookState,
+      ['# 测试书\n\n简介。', '第一段。'],
+      ['# 译名书\n\n译文简介。', '第一章译文。'],
+      titles,
+    )
+    expect(markdown).toBe('# 译名书\n\n译文简介。\n\n## 译名第一章\n\n第一章译文。')
+  })
+
+  it('does not drop the first paragraph when it is not the book-title line', () => {
+    const bookState = createBookState('# 测试书\n\n简介。\n\n## 第一章\n\n第一段。', '测试书')
+    const markdown = assembleBook(
+      bookState,
+      ['简介。\n\n附注。', '第一段。'],
+      ['译文简介。\n\n译文附注。', '第一章译文。'],
+      titles,
+    )
+    expect(markdown).toBe('# 译名书\n\n译文简介。\n\n译文附注。\n\n## 译名第一章\n\n第一章译文。')
+  })
+})

@@ -7,11 +7,39 @@
 import type { FileSystem } from '@deepseek-ai/dsh-fs'
 import type { ToolRunContext } from '@deepseek-ai/dsh-tools'
 
+/**
+ * The per-call sandbox policy shape these tools stamp onto every mutation.
+ * Structurally `{ mode, workspaceRoot }` — the subset of the fs backend's
+ * `SandboxExecutionPolicy` that the fence consumes. Kept as a local duck type
+ * (not an import) because this package must not hard-depend on
+ * `@deepseek-ai/dsh-sandbox`; the bridge cast in {@link writeText} reconciles
+ * the two spellings.
+ */
+export interface ToolSandboxPolicy {
+  readonly mode: string
+  readonly workspaceRoot: string
+}
+
+/**
+ * The host `ctx.sandboxPolicy` service surface this package reaches
+ * structurally (it is mounted by the host composition whenever a confining fs
+ * backend is, D-sandbox).
+ */
+interface SandboxPolicyServiceLike {
+  resolve(request?: { session?: unknown }): ToolSandboxPolicy
+}
+
 /** Cancellation and cwd needed by one tool body. */
 export interface ToolFsContext {
   readonly fs: FileSystem
   readonly cwd: string
   readonly signal: AbortSignal
+  /**
+   * The standing sandbox policy of the calling session, resolved once per tool
+   * call. `undefined` without a mounted host policy service (unit tests,
+   * unsandboxed hosts) — the fs backend then applies its own default fence.
+   */
+  readonly sandboxPolicy?: ToolSandboxPolicy | undefined
 }
 
 /**
@@ -27,9 +55,26 @@ export function requireCwd(exec: ToolRunContext): string {
   return cwd
 }
 
-/** Bundle `ctx.fs` + session cwd + signal into one filesystem context. */
+/**
+ * Resolve the calling session's standing sandbox policy so every mutation is
+ * fenced against the SESSION workspace root instead of the host's deployment
+ * fallback (which can differ from the session cwd). Without a mounted service
+ * this returns `undefined` and the backend's default fence applies.
+ */
+function resolveSandboxPolicy(ctx: unknown, exec: ToolRunContext): ToolSandboxPolicy | undefined {
+  const service = (ctx as { sandboxPolicy?: SandboxPolicyServiceLike }).sandboxPolicy
+  if (service === undefined) return undefined
+  return service.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
+}
+
+/** Bundle `ctx.fs` + session cwd + signal + per-call sandbox policy into one filesystem context. */
 export function toolFs(ctx: { readonly fs: FileSystem }, exec: ToolRunContext): ToolFsContext {
-  return { fs: ctx.fs, cwd: requireCwd(exec), signal: exec.signal }
+  return {
+    fs: ctx.fs,
+    cwd: requireCwd(exec),
+    signal: exec.signal,
+    sandboxPolicy: resolveSandboxPolicy(ctx, exec),
+  }
 }
 
 /** Read a UTF-8 text file at `path` (relative to cwd) as one string. */
@@ -41,7 +86,10 @@ export async function readText(io: ToolFsContext, path: string): Promise<string>
 /** Atomically create or replace `path` (relative to cwd) with `content`. */
 export async function writeText(io: ToolFsContext, path: string, content: string): Promise<void> {
   const target = await io.fs.resolve(path, { cwd: io.cwd, signal: io.signal })
-  await io.fs.writeText(target, content, undefined, io.signal)
+  // The bridge cast: the fs backend types this parameter as its own
+  // `SandboxExecutionPolicy`; our structurally identical `ToolSandboxPolicy`
+  // is intentionally free of that hard dependency.
+  await io.fs.writeText(target, content, undefined, io.signal, io.sandboxPolicy as never)
 }
 
 /** Whether `path` resolves to a regular file. */

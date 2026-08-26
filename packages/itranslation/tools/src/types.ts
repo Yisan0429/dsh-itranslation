@@ -26,18 +26,29 @@ export interface GlossaryEntry {
   source?: string
 }
 
-/** One LLM process record collected by the agent and stored in `meta.json` (D29). */
-interface ProcessRecord {
-  /** Process name: pre-read / style / translate / review / revise. */
+/**
+ * One LLM process record collected by the agent and stored in `meta.json`
+ * (D29). `step`/`model`/`startedAt`/`finishedAt`/`tokenUsage` are derived
+ * from the session log by `itranslation_assemble` (D-processes); the agent
+ * only adds `notes`.
+ */
+export interface ProcessRecord {
+  /** Process name: pre-read / style / translate / review / revise / agent / other. */
   step: string
-  /** Model identifier, when the agent recorded it. */
+  /** Model identifier, when the log recorded it. */
   model?: string
   /** ISO start timestamp. */
   startedAt?: string
   /** ISO finish timestamp. */
   finishedAt?: string
-  /** Token usage recorded from the stream `usage` chunk, when available. */
-  tokenUsage?: { input?: number; output?: number }
+  /** Token usage summed from the stream `usage` chunks, when the adapter reported them. */
+  tokenUsage?: {
+    input?: number
+    output?: number
+    cacheReadTokens?: number
+    cacheWriteTokens?: number
+    reasoningTokens?: number
+  }
   /** Free-form annotation (e.g. chapter range, revision scope). */
   notes?: string
 }
@@ -90,6 +101,8 @@ export interface SegmentResult {
 export interface GlossaryResult {
   slug: string
   entries: GlossaryEntry[]
+  /** Soft scope warnings (e.g. a single `set` over the soft threshold); absent when clean. */
+  warnings?: string[]
 }
 
 /** Per-chapter paragraph alignment after deterministic assembly. */

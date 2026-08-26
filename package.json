@@ -26,6 +26,7 @@
     "knip": "knip --treat-config-hints-as-errors",
     "publint": "publint packages/itranslation/core packages/itranslation/tools packages/itranslation/client",
     "hygiene": "npm run knip && npm run publint",
+    "sync:preset": "node scripts/sync-agent-preset.mjs",
     "postinstall": "node scripts/install-lefthook.mjs"
   },
   "devDependencies": {

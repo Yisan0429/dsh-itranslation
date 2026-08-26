@@ -12,6 +12,12 @@ import { glossaryRel } from './paths'
 import { readState } from './state'
 import type { GlossaryEntry, GlossaryResult } from './types'
 
+/** Hard cap on glossary size: beyond this the write is refused (over-broad collection). */
+const MAX_GLOSSARY_ENTRIES = 200
+
+/** Soft-warning threshold for one `set` call: above it the result carries a scope hint. */
+const SOFT_WARN_SET_SIZE = 100
+
 /** One entry as the model supplies it in `set`. */
 interface GlossarySetEntry {
   readonly term: string
@@ -35,7 +41,7 @@ function normalizeEntry(raw: GlossarySetEntry, source: string): GlossaryEntry {
 }
 
 /** Parse `glossary.json` content; a missing file yields `[]`. */
-function parseGlossary(value: unknown): GlossaryEntry[] {
+export function parseGlossary(value: unknown): GlossaryEntry[] {
   if (typeof value !== 'object' || value === null || Array.isArray(value)) {
     throw new Error('glossary.json 格式错误：应为 { entries } 对象')
   }
@@ -133,6 +139,11 @@ export function applyGlossary(ctx: Context): void {
               },
             },
           },
+          warnings: {
+            type: 'array',
+            items: { type: 'string' },
+            description: '软警告：本次操作触发的范围提示（如单次新增过多条目），不拦截写入。',
+          },
         },
       },
       render: renderJson,
@@ -149,10 +160,27 @@ export function applyGlossary(ctx: Context): void {
         : []
       const merged = mergeEntries(current, set, remove)
 
+      // Hard cap: a glossary beyond the bound signals over-broad collection
+      // (title/name/contested entries only), so the write is refused loudly.
+      if (merged.length > MAX_GLOSSARY_ENTRIES) {
+        throw new Error(
+          `术语表超过上限 ${MAX_GLOSSARY_ENTRIES} 条（当前 ${merged.length} 条）：只应收录标题/章名、专名、`
+            + '有争议或非显然译法的术语，请精简后再写入',
+        )
+      }
+
+      const warnings: string[] = []
+      if (args.set !== undefined && args.set.length > SOFT_WARN_SET_SIZE) {
+        warnings.push(
+          `本次新增 ${args.set.length} 条术语，超过 ${SOFT_WARN_SET_SIZE} 条软阈值：请确认没有收录`
+            + '「唯一自然译法的普通名词」等无争议条目（软警告，不拦截）',
+        )
+      }
+
       const changed = args.set !== undefined || args.remove !== undefined
       if (changed) await writeJson(io, glossaryRel(args.slug), { entries: merged })
 
-      const result: GlossaryResult = { slug: args.slug, entries: merged }
+      const result: GlossaryResult = { slug: args.slug, entries: merged, ...(warnings.length > 0 ? { warnings } : {}) }
       return result
     },
   }))

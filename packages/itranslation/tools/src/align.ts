@@ -9,7 +9,7 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { segmentParagraphs } from '@deepseek-ai/dsh-itranslation-core'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { assembleBookOrMismatch, readAssemblyInputs } from './assembly'
+import { assembleBookOrMismatch, readAssemblyInputs, readTitleTranslations } from './assembly'
 import { renderJson, toolFs, writeText } from './io'
 import { alignedRel } from './paths'
 import { readState } from './state'
@@ -61,6 +61,7 @@ export function applyAlign(ctx: Context): void {
       const state = await readState(io, args.slug)
 
       const { sources, translations } = await readAssemblyInputs(io, args.slug, state)
+      const titleTranslations = await readTitleTranslations(io, args.slug)
       const chapters: AlignChapter[] = state.chapters.map((chapter, index) => ({
         index: chapter.index,
         title: chapter.title,
@@ -68,7 +69,7 @@ export function applyAlign(ctx: Context): void {
         translationParagraphs: segmentParagraphs(translations[index] as string).length,
       }))
 
-      const outcome = assembleBookOrMismatch(state, sources, translations)
+      const outcome = assembleBookOrMismatch(state, sources, translations, titleTranslations)
       if (!outcome.ok) {
         const result: AlignResult = { ok: false, slug: args.slug, chapters: [], mismatch: outcome.mismatch, message: outcome.message }
         return result

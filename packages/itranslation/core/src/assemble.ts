@@ -1,4 +1,5 @@
 import type { BookState, ChapterState } from './types'
+import { stripHeadingAttributes } from './chapter'
 
 const BLANK_LINE = /\n[ \t]*\n/u
 const BOOK_HEADING_PREFIX = '# '
@@ -40,10 +41,29 @@ function markdownParagraphs(markdown: string): string[] {
     .filter(paragraph => paragraph !== '')
 }
 
-/** Build the Markdown heading line for a chapter; an empty title emits no heading. */
-function chapterHeadingFor(chapter: ChapterState): string {
+/**
+ * Build the Markdown heading line for a chapter; an empty title emits no
+ * heading. When the glossary-based `titleTranslations` map carries the raw
+ * title, the translated rendering is used (program-level heading translation:
+ * `## The First Storm` → `## 第一场风暴`); absent an entry the raw title
+ * stays.
+ */
+function chapterHeadingFor(chapter: ChapterState, titleTranslations?: ReadonlyMap<string, string>): string {
   if (chapter.title === '') return ''
-  return `${CHAPTER_HEADING_PREFIX}${chapter.title}`
+  return `${CHAPTER_HEADING_PREFIX}${titleTranslations?.get(chapter.title) ?? chapter.title}`
+}
+
+/**
+ * Whether a paragraph is the source book-title line carried as body content
+ * (`# <book title>`, with optional Pandoc heading attributes): the engine
+ * keeps everything before the first `##` heading as body, so the `#` title
+ * line of the E2M file lands inside the first chapter's body. Assembly drops
+ * that paragraph (and its translation) so the emitted book-title line is the
+ * only title in the output (D-title-dedup).
+ */
+function isBookTitleParagraph(paragraph: string, bookTitle: string): boolean {
+  if (!paragraph.startsWith('# ')) return false
+  return stripHeadingAttributes(paragraph.slice(2).trim()) === bookTitle
 }
 
 /**
@@ -62,8 +82,15 @@ export function joinChapterFragments(fragments: readonly string[]): string {
  * Deterministic chapter assembly (D56/D57): the source and translation are
  * split on blank lines and their paragraph counts must match, otherwise a
  * `TranslationMismatchError` stops assembly. Sentence counts are not checked.
+ * The `##` heading is emitted from the raw chapter title, translated through
+ * `titleTranslations` when it carries an entry.
  */
-export function assembleChapter(chapter: ChapterState, source: string, translation: string): string {
+export function assembleChapter(
+  chapter: ChapterState,
+  source: string,
+  translation: string,
+  titleTranslations?: ReadonlyMap<string, string>,
+): string {
   const sourceParagraphs = markdownParagraphs(source)
   const translatedParagraphs = markdownParagraphs(translation)
 
@@ -76,7 +103,7 @@ export function assembleChapter(chapter: ChapterState, source: string, translati
     )
   }
 
-  const heading = chapterHeadingFor(chapter)
+  const heading = chapterHeadingFor(chapter, titleTranslations)
   const parts = heading === '' ? [] : [heading]
   parts.push(...translatedParagraphs)
   return parts.join('\n\n')
@@ -84,24 +111,39 @@ export function assembleChapter(chapter: ChapterState, source: string, translati
 
 /**
  * Deterministic whole-book assembly (D56/D57): the book title line is always
- * emitted as `# ` (empty title emits an empty `#` line), chapters follow as
- * `## title` in `state.json` order. Chapter-count mismatch stops assembly by
- * throwing `TranslationMismatchError`; the tools layer asks the user how to
- * proceed.
+ * emitted as `# ` — translated through `titleTranslations` when it carries an
+ * entry — chapters follow as `## title` in `state.json` order. When the first
+ * chapter is the empty-title chapter and its first source paragraph is the
+ * book-title line (`# <book title>`, the title-as-body artifact), that
+ * paragraph and its translation are dropped so the book-title line is not
+ * duplicated. Chapter-count mismatch stops assembly by throwing
+ * `TranslationMismatchError`; the tools layer asks the user how to proceed.
  */
 export function assembleBook(
   book: BookState,
   sources: readonly string[],
   translations: readonly string[],
+  titleTranslations?: ReadonlyMap<string, string>,
 ): string {
   if (book.chapters.length !== translations.length || sources.length !== translations.length) {
     throw new TranslationMismatchError('chapter-count', 1, book.chapters.length, translations.length)
   }
 
-  const parts = [`${BOOK_HEADING_PREFIX}${book.title}`]
+  const parts = [`${BOOK_HEADING_PREFIX}${titleTranslations?.get(book.title) ?? book.title}`]
   for (let index = 0; index < book.chapters.length; index += 1) {
     const chapter = book.chapters[index] as ChapterState
-    const assembled = assembleChapter(chapter, sources[index] as string, translations[index] as string)
+    let source = sources[index] as string
+    let translation = translations[index] as string
+    // Title-as-body dedup for the empty-title first chapter (see isBookTitleParagraph).
+    if (index === 0 && chapter.title === '') {
+      const sourceParagraphs = markdownParagraphs(source)
+      const first = sourceParagraphs[0]
+      if (first !== undefined && isBookTitleParagraph(first, book.title)) {
+        source = sourceParagraphs.slice(1).join('\n\n')
+        translation = markdownParagraphs(translation).slice(1).join('\n\n')
+      }
+    }
+    const assembled = assembleChapter(chapter, source, translation, titleTranslations)
     if (assembled !== '') parts.push(assembled)
   }
   return parts.join('\n\n')

@@ -9,7 +9,8 @@
 import type { Context } from '@deepseek-ai/cordis'
 import { engineVersion, segmentParagraphs } from '@deepseek-ai/dsh-itranslation-core'
 import { defineTool } from '@deepseek-ai/dsh-tools'
-import { assembleBookOrMismatch, readAssemblyInputs } from './assembly'
+import { assembleBookOrMismatch, readAssemblyInputs, readTitleTranslations } from './assembly'
+import { deriveProcesses, mergeProcessNotes, type SessionEventLike } from './processes'
 import { isFile, renderJson, toolFs, writeJson, writeText } from './io'
 import { auditRel, bookDirRel, metaRel, outputRel } from './paths'
 import { readState } from './state'
@@ -32,7 +33,8 @@ export function applyAssemble(ctx: Context): void {
       },
       processes: {
         type: 'array',
-        description: '可选：各 LLM 过程的证据记录（模型/起止/用量），写入 meta.json（D29/D34）。',
+        description: '可选：按 step 补充的 notes（如修订范围说明）。model/startedAt/finishedAt/tokenUsage 由工具'
+          + '从会话日志自动导出（D-processes），无需也不应手工填写；无会话日志时才按原样使用本参数。',
         items: {
           type: 'object',
           additionalProperties: false,
@@ -81,13 +83,14 @@ export function applyAssemble(ctx: Context): void {
       }
 
       const { sources, translations } = await readAssemblyInputs(io, args.slug, state)
+      const titleTranslations = await readTitleTranslations(io, args.slug)
       const chapters: MetaFile['chapters'] = state.chapters.map((chapter, index) => ({
         index: chapter.index,
         title: chapter.title,
         paragraphs: segmentParagraphs(sources[index] as string).length,
       }))
 
-      const outcome = assembleBookOrMismatch(state, sources, translations)
+      const outcome = assembleBookOrMismatch(state, sources, translations, titleTranslations)
       if (!outcome.ok) {
         const result: AssembleResult = { ok: false, slug: args.slug, mismatch: outcome.mismatch, message: outcome.message }
         return result
@@ -95,6 +98,15 @@ export function applyAssemble(ctx: Context): void {
 
       const outputFile = outputRel(args.slug)
       await writeText(io, outputFile, outcome.markdown)
+
+      // Auto-derive the LLM-process evidence chain from the session log; the
+      // agent only ever adds notes (D-processes). Without a live log the
+      // caller-supplied records are used verbatim.
+      const session = (exec.agent?.session as { events?: readonly SessionEventLike[] } | undefined)?.events
+      const derived = deriveProcesses(session ?? [])
+      const processes = session === undefined
+        ? (args.processes ?? [])
+        : mergeProcessNotes(derived, args.processes)
 
       const meta: MetaFile = {
         schemaVersion: META_SCHEMA_VERSION,
@@ -105,7 +117,7 @@ export function applyAssemble(ctx: Context): void {
         chapters,
         outputFile,
         assembledAt: new Date().toISOString(),
-        processes: args.processes ?? [],
+        processes,
       }
       await writeJson(io, metaRel(args.slug), meta)
 

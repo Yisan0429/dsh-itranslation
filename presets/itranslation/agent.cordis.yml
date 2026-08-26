@@ -40,8 +40,29 @@
       Before translating, ask the user only one question via ask_user_question: the target language.
       Everything else is automatic; do not ask about genre, style, or terminology mode.
 
+      Step prompts: before each LLM step (pre-read, translation, audit, revision), read the
+      step's additional prompt with the itranslation_prompts tool and append it to that
+      subagent's task instructions. The settings page (namespace itranslation) can override
+      the built-in defaults.
+
+      Process evidence: every LLM subagent dispatch must use a step-prefixed description —
+      "Pre-read: …", "Translate chapter <n>: …", "Audit: …", "Revise: …" — so
+      itranslation_assemble can auto-derive the meta.json process records (model, timing,
+      usage) from the session log. Do NOT hand-fill model, timestamps, or token usage; add
+      a short note only when it explains something the log cannot (e.g. revision scope).
+
       Pre-reading: dispatch one subagent to read the whole book and write the final
       style.md and glossary.json directly. No drafts, no separate style-unification step.
+
+      Glossary scoping: the pre-read agent must ACTIVELY identify the book's key
+      terms rather than enumerate its nouns — collect the book title and every
+      chapter title (their renderings drive the assembled headings; terms must
+      match the source titles exactly, case-sensitive), proper nouns (character,
+      place, organization names — transliteration is a choice), uncommon or
+      domain words, contested or ambiguous renderings, and abstract/conceptual
+      keywords. Do not pad with common nouns that have a single natural
+      translation. Hard cap: at most 200 entries per book — the glossary tool
+      refuses to write beyond it, and a single bulk add over 100 entries warns.
 
       Terminology: once glossary.json exists, stop and ask the user via ask_user_question
       to review the file. The user may edit glossary.json; wait for their confirmation

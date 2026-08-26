@@ -1,6 +1,6 @@
 /**
  * `@deepseek-ai/dsh-itranslation-tools` — Host tool surface and book-level
- * state file management for the itranslation preset (D26/D58). Registers six
+ * state file management for the itranslation preset (D26/D58). Registers seven
  * deterministic tools via `ctx.tools.register(defineTool(...))`; all file
  * effects go through `ctx.fs`, resolved against the session workspace cwd
  * (D31/D46). No LLM calls happen here (D26).
@@ -12,6 +12,7 @@ import { applyAlign } from './align'
 import { applyAssemble } from './assemble'
 import { applyGlossary } from './glossary'
 import { applyPrepare } from './prepare'
+import { applyPrompts } from './prompts'
 import { applySegment } from './segment'
 import { applyStatus } from './status'
 
@@ -44,7 +45,7 @@ function resolveThreshold(config: Config): number {
   return threshold
 }
 
-/** Register all six deterministic itranslation tools. */
+/** Register all seven deterministic itranslation tools. */
 export function apply(ctx: Context, config: Config): void {
   const threshold = resolveThreshold(config)
   applyPrepare(ctx)
@@ -53,4 +54,5 @@ export function apply(ctx: Context, config: Config): void {
   applyAlign(ctx)
   applyAssemble(ctx)
   applyStatus(ctx)
+  applyPrompts(ctx)
 }

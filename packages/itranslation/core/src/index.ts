@@ -1,6 +1,7 @@
 import { assembleBook, assembleChapter, joinChapterFragments, TranslationMismatchError } from './assemble'
 import { detectChapters, normalizeMarkdown, stripHeadingAttributes } from './chapter'
 import { countSentences, segmentParagraphs } from './segment'
+import { DEFAULT_PROMPTS, PRE_READ_PROMPT, TRANSLATE_PROMPT, AUDIT_PROMPT, REVISE_PROMPT } from './prompts'
 import { slugify } from './slug'
 import { createBookState } from './state'
 
@@ -23,6 +24,11 @@ export {
   slugify,
   stripHeadingAttributes,
   TranslationMismatchError,
+  DEFAULT_PROMPTS,
+  PRE_READ_PROMPT,
+  TRANSLATE_PROMPT,
+  AUDIT_PROMPT,
+  REVISE_PROMPT,
 }
 
 export type {

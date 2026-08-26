@@ -13,6 +13,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
+import { DEFAULT_PROMPTS } from '@deepseek-ai/dsh-itranslation-core'
 import z from '@deepseek-ai/schemastery'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 
@@ -27,12 +28,17 @@ interface ItranslationSettings {
   revisePrompt: string
 }
 
-/** Empty by design: the settings page provides blank textareas; users fill their own prompts. */
+/**
+ * Defaults come from the core package's built-in step prompts (one source of
+ * truth shared with the `itranslation_prompts` tool): the settings page shows
+ * them as the starting text, and clearing a field reverts to the built-in
+ * default rather than to an empty string.
+ */
 export const ItranslationSettingsSchema: z<ItranslationSettings> = z.object({
-  preReadPrompt: z.string().default(''),
-  translatePrompt: z.string().default(''),
-  auditPrompt: z.string().default(''),
-  revisePrompt: z.string().default(''),
+  preReadPrompt: z.string().default(DEFAULT_PROMPTS.preReadPrompt),
+  translatePrompt: z.string().default(DEFAULT_PROMPTS.translatePrompt),
+  auditPrompt: z.string().default(DEFAULT_PROMPTS.auditPrompt),
+  revisePrompt: z.string().default(DEFAULT_PROMPTS.revisePrompt),
 })
 
 /**

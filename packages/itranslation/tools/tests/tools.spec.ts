@@ -171,6 +171,40 @@ describe('itranslation_glossary', () => {
     expect(read).toMatchObject({ entries: [{ term: 'x', translation: 'y' }] })
   })
 
+  it('warns softly when a single set exceeds the soft threshold', async () => {
+    const { captured, exec } = setup()
+    await prepared(captured, exec)
+    const bigSet = Array.from({ length: 101 }, (_, index) => ({ term: `t${index}`, translation: `译${index}` }))
+    const result = await run(
+      toolByName(captured, 'itranslation_glossary'),
+      { slug: SLUG, set: bigSet },
+      exec,
+    ) as { warnings?: string[] }
+    expect(result.warnings).toBeDefined()
+    expect((result.warnings as string[])[0]).toContain('软阈值')
+  })
+
+  it('does not warn for a normal-size set', async () => {
+    const { captured, exec } = setup()
+    await prepared(captured, exec)
+    const result = await run(
+      toolByName(captured, 'itranslation_glossary'),
+      { slug: SLUG, set: [{ term: 'a', translation: '甲' }] },
+      exec,
+    ) as { warnings?: string[] }
+    expect(result.warnings).toBeUndefined()
+  })
+
+  it('refuses to write a glossary beyond the hard cap', async () => {
+    const { captured, exec } = setup()
+    await prepared(captured, exec)
+    const hugeSet = Array.from({ length: 201 }, (_, index) => ({ term: `t${index}`, translation: `译${index}` }))
+    await expect(
+      run(toolByName(captured, 'itranslation_glossary'), { slug: SLUG, set: hugeSet }, exec),
+    ).rejects.toThrow(/上限 200/)
+    expect(captured.mem.read(`books/${SLUG}/glossary.json`)).toBeUndefined()
+  })
+
   it('rejects an entry with an empty term', async () => {
     const { captured, exec } = setup()
     await prepared(captured, exec)

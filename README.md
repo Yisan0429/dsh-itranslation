@@ -45,8 +45,12 @@ pnpm run build                        # 双面构建（tsc + tsdown，含 client
 
 node scripts/install-web-deploy.mjs        # dry-run：预览会写入 ~/.dsh/profiles/web/ 的改动
 node scripts/install-web-deploy.mjs --apply  # 幂等落盘：file: 依赖 + cordis.patch.yml insert
+node scripts/sync-agent-preset.mjs         # dry-run：预览 agent preset 同步（repo → ~/.dsh/.agent-presets）
+node scripts/sync-agent-preset.mjs --apply # 幂等落盘，唯一部署路径
 cd ~/.dsh/profiles/web && pnpm install && dsh web   # 重启生效
 ```
+
+修改 preset（`presets/itranslation/agent.cordis.yml`）后：重跑 `sync-agent-preset.mjs --apply` 并重启 `dsh web`——repo 是唯一真相源，部署副本由脚本同步，不存在两份文件漂移的问题。
 
 部署脚本只改用户 profile（`~/.dsh/profiles/web/`），不碰 `~/deepseek-harness`。重启后在 DSH 新建会话，选择 **Itranslation** preset 即可。
 
@@ -86,14 +90,14 @@ books/<slug>/                                 │
 
 ### LLM 提示词（设置页，命名空间 `itranslation`）
 
-四个 LLM 步骤（预读/翻译/审查/修订）的附加提示词模板，在 DSH 设置页「整书翻译」分区编辑（经插件自有路由 `/_dsh/itranslation/settings` 读写），留空表示不附加额外提示词：
+四个 LLM 步骤（预读/翻译/审查/修订）的附加提示词模板，在 DSH 设置页「整书翻译」分区编辑（经插件自有路由 `/_dsh/itranslation/settings` 读写）。**默认值为内置成品提示词**（core 包 `DEFAULT_PROMPTS`，设置页与 `itranslation_prompts` 工具共用同一真相源）；主代理派发子代理前用 `itranslation_prompts` 读取对应步骤提示词并附加到任务说明末尾，留空/清空即回退到内置默认：
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `preReadPrompt` | 空串 | 预读子代理附加提示词 |
-| `translatePrompt` | 空串 | 翻译子代理附加提示词 |
-| `auditPrompt` | 空串 | 审查模型附加提示词 |
-| `revisePrompt` | 空串 | 修订模型附加提示词 |
+| `preReadPrompt` | 内置预读提示词 | 预读子代理附加提示词（通读全书 → 直接落盘 `style.md` + 高价值 `glossary.json`） |
+| `translatePrompt` | 内置翻译提示词 | 翻译子代理附加提示词（查表术语、段落数一致、不含章标题） |
+| `auditPrompt` | 内置审查提示词 | 审查模型附加提示词（5 维度、按章/段定位、不分级） |
+| `revisePrompt` | 内置修订提示词 | 修订模型附加提示词（只改报告指出的问题段） |
 
 ## 功能特性
 
@@ -101,22 +105,29 @@ books/<slug>/                                 │
 
 章节识别只认 `##` 为章边界（书名 `#`、节 `###` 留在正文，标题属性 `{#...}` 剥除，第一个 `##` 之前的正文为独立空标题章，无 `##` 整本作单章）；段落由 Markdown 空行天然承载；组装按原文/译文空行分段比对段数，章/段数失配抛错由工具层询问，绝不静默继续。slug 由书名确定性生成（NFKC 规范化、保留中文、规避 Windows 保留名、≤200 字符）。
 
-### 六个确定性工具（tools）
+**标题翻译（程序级）**：组装时书名行与 `##` 章标题自动经 `glossary.json` 译成目标语言（`## The First Storm` → `## 第一场风暴`；glossary 无对应条目时保留原文）。空标题首章正文若以 `# <书名>` 行开头（E2M 标题行落入正文的产物），组装会丢弃该段及其译文，确保书名行只出现一次。
+
+### 七个确定性工具（tools）
 
 | 工具 | 作用 | 关键参数 | 主要输出 |
 |---|---|---|---|
 | `itranslation_prepare` | 一本书录入：读 `input/` 下 Markdown → 识别 `##` 章边界 → 落原文备份与章结构；已准备过的书拒绝覆盖 | `path`（必填）、`title` | `slug`、`chapters`、`sourceFiles` |
 | `itranslation_segment` | 分段报告（只读）：每章段数/句数/字节，标记超长章 | `slug`、`chapter`（可选） | `chapters[]`、`overlongChapters[]` |
 | `itranslation_glossary` | 术语表管理：按 term 增补（set）/删除（remove）并回写；不带参数时只读 | `slug`、`set[]`、`remove[]`、`source` | `entries[]` |
-| `itranslation_align` | 组装校验：读原文与译文（含分片）→ 空行比对段数并组装 → 写 `aligned.md` 预览 | `slug` | `ok`、`chapters[]`、`mismatch` |
-| `itranslation_assemble` | 出成品 + 证据链：前置 `state.json`/`chapters/`/`audit-report.md` 齐全才执行 → 写 `output/<slug>.md` 与 `meta.json` | `slug`、`processes[]`（LLM 过程记录） | `ok`、`outputFile`、`metaFile` |
+| `itranslation_align` | 组装校验：读原文与译文（含分片）→ 空行比对段数并组装 → 写 `aligned.md` 预览（标题经 glossary 翻译） | `slug` | `ok`、`chapters[]`、`mismatch` |
+| `itranslation_assemble` | 出成品 + 证据链：前置 `state.json`/`chapters/`/`audit-report.md` 齐全才执行 → 写 `output/<slug>.md`（标题经 glossary 翻译）与 `meta.json`（processes 从会话日志自动导出：模型/起止/用量；`processes[]` 参数只作补充 notes） | `slug`、`processes[]`（可选 notes） | `ok`、`outputFile`、`metaFile` |
 | `itranslation_status` | 进度与证据摘要（只读）：产物存在性、已译章数、工作阶段 | `slug` | `artifacts{}`、`phase` |
+| `itranslation_prompts` | 读取四个 LLM 步骤的附加提示词（只读）：设置页已保存值优先，未设置返回内置默认 | 无 | `ok`、`source`、`prompts{}` |
 
 所有工具执行前校验前置产物与步骤顺序，不齐即拒绝（硬拦只在确定性工具处）；失配等数据条件返回结构化 `ok:false` 由 agent 转问用户。
 
 ### 子代理并行翻译
 
 一章一个 `spawn` 子代理（独立上下文、模型固定）；任务只注入该章文本，风格说明与术语表由子代理直读书级目录文件（单一真相源，不占注入预算）；超长章由主 agent 拆分并留痕，分片各派一个子代理。并发/分批由主 agent 自定。
+
+### 术语表范围约束
+
+`glossary.json` 的收录是**主动识别关键术语**，而非穷举名词：必收书名与各章章名（组装阶段据此生成中文标题，term 须与原文标题完全一致、区分大小写）、专名（人名/地名/机构名，音译即取舍）、不常见或领域词、有争议或歧义译法、抽象概念词；不得用只有唯一自然译法的普通名词凑数。**硬上限 200 条**——`itranslation_glossary` 超过即拒绝写入；单次批量新增超过 100 条返回软警告（不拦截）。约束落在 preset persona（预读指令）与工具护栏中，停点②的人工审阅仍可增删。
 
 ### 全书审查与定向修订
 
