@@ -1,0 +1,13 @@
+# Itranslation DSH profile bundle patch.
+#
+# Installed through `dsh plugin --profile web add <this-package>`:
+#   - the client package becomes a profile dependency, so the browser-side
+#     `dsh.client` scan can compose the Run card and settings page;
+#   - this insert exposes the client package as a host Loader entry, exactly
+#     like the manual `cordis.patch.yml` insert used before bundling.
+#
+# The tools package is pulled in as a dependency for the agent preset
+# (`presets/itranslation/agent.cordis.yml` references it by package name).
+- insert:
+    - id: itranslation-client
+      name: '@deepseek-ai/dsh-itranslation-client'

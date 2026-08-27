@@ -22,7 +22,7 @@ import { readState } from './state'
 import type { DispatchResult } from './types'
 
 /** The pipeline steps this tool can dispatch. */
-export type DispatchStep = DispatchResult['step']
+type DispatchStep = DispatchResult['step']
 
 /** Fixed report-field line per step — the only report the subagent may give. */
 const REPORT_FIELDS: Record<DispatchStep, string> = {

@@ -15,7 +15,11 @@ function isBuildFaceClient(value: unknown): boolean {
 export default defineConfig(({ env }) => {
   const client = isBuildFaceClient(env?.DSH_BUILD_FACE)
   return {
-    workspace: ['packages/*/*'],
+    workspace: [
+      'packages/itranslation/core',
+      'packages/itranslation/tools',
+      'packages/itranslation/client',
+    ],
     entry: client ? '' : ['lib/types/index.js'],
     outDir: 'lib',
     format: ['esm'],

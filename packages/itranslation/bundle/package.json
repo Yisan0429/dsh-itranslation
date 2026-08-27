@@ -1,0 +1,24 @@
+{
+  "name": "@deepseek-ai/dsh-itranslation",
+  "description": "Itranslation whole-book translation preset as a DSH profile bundle (host client UI + tool dependencies)",
+  "version": "1.0.0",
+  "publishConfig": {
+    "access": "public"
+  },
+  "type": "module",
+  "dsh": {
+    "bundle": {
+      "patch": "./cordis.patch.yml"
+    }
+  },
+  "files": [
+    "cordis.patch.yml",
+    "README.md"
+  ],
+  "dependencies": {
+    "@deepseek-ai/dsh-itranslation-client": "workspace:^",
+    "@deepseek-ai/dsh-itranslation-core": "workspace:^",
+    "@deepseek-ai/dsh-itranslation-tools": "workspace:^"
+  },
+  "license": "MIT"
+}

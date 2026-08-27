@@ -38,16 +38,36 @@ Itranslation × DSH 是一个整本书翻译生产线的 DeepSeek Harness agent 
 
 前置：Node `^22.19 || >=24`、pnpm 11.7（仓库声明于 `packageManager`）、本机 DSH 部署（`dsh web`）。
 
+### 方式一：从源码仓库链入（当前推荐）
+
 ```bash
 git clone <repo> && cd dsh-itranslation
 pnpm install                          # 依赖 + 自动装 git 钩子
 pnpm run build                        # 双面构建（tsc + tsdown，含 client 浏览器 bundle）
 
 node scripts/install-web-deploy.mjs        # dry-run：预览会写入 ~/.dsh/profiles/web/ 的改动
-node scripts/install-web-deploy.mjs --apply  # 幂等落盘：file: 依赖 + cordis.patch.yml insert
-node scripts/sync-agent-preset.mjs         # dry-run：预览 agent preset 同步（repo → ~/.dsh/.agent-presets）
-node scripts/sync-agent-preset.mjs --apply # 幂等落盘，唯一部署路径
-cd ~/.dsh/profiles/web && pnpm install && dsh web   # 重启生效
+node scripts/install-web-deploy.mjs --apply  # 幂等落盘：打包 tarball、执行 dsh plugin add、同步 agent preset
+dsh web                                   # 重启生效
+```
+
+`install-web-deploy.mjs --apply` 现在走的是 DSH 官方插件通道：它把
+`packages/itranslation/bundle`（`@deepseek-ai/dsh-itranslation`）连同
+core/tools/client 打成 tarball，然后用 `dsh plugin --profile web add file:<bundle>.tgz`
+安装。DSH 会自动把该 bundle 加入 `dsh.profile.bundles` 并加载其
+`cordis.patch.yml`（插入 client host entry）。脚本随后还会自动同步
+agent preset 到 `~/.dsh/.agent-presets/itranslation/`。
+
+### 方式二：已发布到 npm 后
+
+```bash
+dsh plugin --profile web add @deepseek-ai/dsh-itranslation
+```
+
+安装后仍需同步 agent preset：
+
+```bash
+node scripts/sync-agent-preset.mjs --apply
+dsh web
 ```
 
 修改 preset（`presets/itranslation/agent.cordis.yml`）后：重跑 `sync-agent-preset.mjs --apply` 并重启 `dsh web`——repo 是唯一真相源，部署副本由脚本同步，不存在两份文件漂移的问题。
@@ -170,9 +190,10 @@ dsh-itranslation/
 ├── packages/itranslation/
 │   ├── core/      确定性文本引擎（章节识别/分段/组装），零 DSH 依赖
 │   ├── tools/     Host 工具面：十个 itranslation_* 工具（主流程、派发、子代理受限读写）与书级状态文件管理
-│   └── client/    Client UI：Run 卡进度、提示词/目标语言/输入文件设置页（host/client 双面构建）
+│   ├── client/    Client UI：Run 卡进度、提示词/目标语言/输入文件设置页（host/client 双面构建）
+│   └── bundle/    DSH bundle 入口：`dsh.bundle.patch` + `cordis.patch.yml`，供 `dsh plugin add` 安装
 ├── presets/itranslation/   agent preset 组合（agent.cordis.yml + preset.yml）
-├── scripts/       lefthook 安装、commit-msg 校验、web 部署链入（幂等）
+├── scripts/       lefthook 安装、commit-msg 校验、web 部署链入（幂等，内部走 dsh plugin add）
 ├── input/         用户放入 E2M 转出的 Markdown
 ├── produce/       书级工作目录（<slug>/，会话期间产物）
 ├── output/        最终成品（<slug>.md）

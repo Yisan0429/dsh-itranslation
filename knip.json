@@ -25,5 +25,11 @@
         ]
       }
     }
-  }
+  },
+  "ignoreBinaries": [
+    "dsh"
+  ],
+  "ignoreWorkspaces": [
+    "packages/itranslation/bundle"
+  ]
 }
