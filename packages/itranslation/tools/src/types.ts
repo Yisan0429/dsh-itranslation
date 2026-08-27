@@ -33,7 +33,7 @@ export interface GlossaryEntry {
  * only adds `notes`.
  */
 export interface ProcessRecord {
-  /** Process name: pre-read / style / translate / review / revise / agent / other. */
+  /** Process name: pre-read / translate / review / revise / agent / other. */
   step: string
   /** Model identifier, when the log recorded it. */
   model?: string
@@ -105,6 +105,15 @@ export interface GlossaryResult {
   warnings?: string[]
 }
 
+/** `itranslation_dispatch` result: the complete subagent task text, used verbatim. */
+export interface DispatchResult {
+  ok: true
+  step: 'pre-read' | 'translate' | 'audit' | 'revise'
+  language: string
+  /** The full dispatch prompt: language, paths, fixed prompt, fixed report fields. */
+  text: string
+}
+
 /** Per-chapter paragraph alignment after deterministic assembly. */
 export interface AlignChapter {
   index: number
@@ -146,7 +155,6 @@ export interface AssembleResult {
 interface StatusArtifacts {
   state: boolean
   glossary: boolean
-  style: boolean
   audit: boolean
   aligned: boolean
   meta: boolean

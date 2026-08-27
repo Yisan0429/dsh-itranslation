@@ -19,6 +19,36 @@
   color: var(--dsw-alias-state-warn-label);
 }
 
+.configIntro {
+  margin: 8px 0 0;
+  font: var(--dsw-font-xs-strong-13);
+  color: var(--dsw-alias-label-primary);
+}
+
+.configInput {
+  box-sizing: border-box;
+  width: 100%;
+  padding: 6px 10px;
+  border: 1px solid var(--dsw-alias-border-l2);
+  border-radius: 6px;
+  background: var(--dsw-alias-bg-layer-1);
+  font: var(--dsw-font-xs-13);
+  color: var(--dsw-alias-label-primary);
+}
+
+.configInput::placeholder {
+  color: var(--dsw-alias-label-tertiary);
+}
+
+.configInput:focus {
+  outline: 1px solid var(--dsw-alias-state-business-primary);
+  outline-offset: -1px;
+}
+
+.configInput:disabled {
+  color: var(--dsw-alias-label-dimmed);
+}
+
 .field {
   display: flex;
   flex-direction: column;

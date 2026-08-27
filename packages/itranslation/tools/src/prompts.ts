@@ -4,8 +4,9 @@
  * overrides under the `itranslation` namespace (registered by the client
  * package); this tool reads the resolved value through the host settings
  * service and falls back to the built-in defaults from the core package when
- * the namespace or the service is unavailable. The main agent appends the
- * step prompt to each subagent's task description (D-prompts).
+ * the namespace or the service is unavailable. `itranslation_dispatch` reads
+ * these prompts when composing each subagent's task (D-prompts); the main
+ * agent does not call this tool during the pipeline.
  */
 
 import type { Context } from '@deepseek-ai/cordis'
@@ -31,26 +32,31 @@ interface SettingsServiceLike {
 
 const PROMPT_KEYS = ['preReadPrompt', 'translatePrompt', 'auditPrompt', 'revisePrompt'] as const
 
-/** Copy exactly the four prompt fields from a resolved settings value. */
-function pickPromptFields(value: unknown): PromptSettings | undefined {
+/** Copy the string prompt fields a resolved settings value carries (partial allowed). */
+function pickPromptFields(value: unknown): Partial<PromptSettings> | undefined {
   if (typeof value !== 'object' || value === null) return undefined
   const record = value as Record<string, unknown>
   const prompts: Partial<PromptSettings> = {}
   for (const key of PROMPT_KEYS) {
     const field = record[key]
-    if (typeof field !== 'string') return undefined
-    prompts[key] = field
+    // A non-empty saved value wins; an empty string (cleared field) falls back
+    // to the built-in default, matching the settings schema's revert intent.
+    if (typeof field === 'string' && field !== '') prompts[key] = field
   }
-  return prompts as PromptSettings
+  return Object.keys(prompts).length > 0 ? prompts : undefined
 }
 
-/** Resolve the effective prompts: settings namespace first, built-in defaults otherwise. */
+/**
+ * Resolve the effective prompts: per-field user-saved values from the settings
+ * namespace win, every unset field falls back to the built-in default. With no
+ * settings row at all, all four defaults are returned.
+ */
 export function effectivePrompts(ctx: Context): { source: 'settings' | 'defaults'; prompts: PromptSettings } {
   try {
     const settings = (ctx as unknown as { get(name: string): unknown }).get('settings') as SettingsServiceLike | undefined
     const row = settings?.describe().find(candidate => String(candidate.ns) === PROMPT_SETTINGS_NAMESPACE)
-    const prompts = pickPromptFields(row?.value)
-    if (prompts !== undefined) return { source: 'settings', prompts }
+    const overrides = pickPromptFields(row?.value)
+    if (overrides !== undefined) return { source: 'settings', prompts: { ...DEFAULT_PROMPTS, ...overrides } }
   } catch {
     // settings service unavailable or namespace missing — fall through to defaults
   }
@@ -61,7 +67,7 @@ export function applyPrompts(ctx: Context): void {
   ctx.tools.register(defineTool({
     name: 'itranslation_prompts',
     description: '只读：返回四个 LLM 步骤（预读/翻译/审查/修订）的附加提示词。设置页已保存值优先（命名空间 itranslation），'
-      + '未设置或设置服务不可用时返回内置默认。主代理派发子代理时，把对应步骤的提示词附加到子代理任务说明末尾。',
+      + '未设置或设置服务不可用时返回内置默认。`itranslation_dispatch` 在派发子代理时读取这些提示词并组装任务；主代理在流水线中不应调用本工具。',
     parameters: {},
     output: {
       schema: {

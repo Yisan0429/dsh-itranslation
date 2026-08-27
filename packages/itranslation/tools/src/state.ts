@@ -39,7 +39,11 @@ export function parseState(value: unknown): BookState {
   if (!Array.isArray(chapters)) {
     throw new Error('state.json 格式错误：chapters 缺失或非数组')
   }
-  return { title, chapters: chapters.map(parseChapterState) }
+  return {
+    title,
+    chapters: chapters.map(parseChapterState),
+    ...(typeof record.inputPath === 'string' && record.inputPath !== '' ? { inputPath: record.inputPath } : {}),
+  }
 }
 
 /** Read and validate `state.json` for book `slug` (must exist). */

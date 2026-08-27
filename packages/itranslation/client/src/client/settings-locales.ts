@@ -3,6 +3,7 @@
 /** Locale keys the section renders. */
 export type SettingsKey =
   | 'nav' | 'intro' | 'preRead' | 'translate' | 'audit' | 'revise'
+  | 'targetLanguage' | 'inputFile' | 'configIntro'
   | 'save' | 'saving' | 'loading' | 'failed' | 'missing'
 
 /** English copy. */
@@ -13,6 +14,9 @@ export const en: Record<SettingsKey, string> = {
   translate: 'Translation prompt',
   audit: 'Audit prompt',
   revise: 'Revision prompt',
+  configIntro: 'Automatic pipeline configuration:',
+  targetLanguage: 'Target language',
+  inputFile: 'Input book (input/<file>.md; empty = auto-discover)',
   save: 'Save prompts',
   saving: 'Saving…',
   loading: 'Loading Itranslation settings…',
@@ -28,6 +32,9 @@ export const zh: Record<SettingsKey, string> = {
   translate: '翻译提示词',
   audit: '审查提示词',
   revise: '修订提示词',
+  configIntro: '流水线自动配置：',
+  targetLanguage: '目标语言',
+  inputFile: '待译书目（input/<file>.md；留空自动发现）',
   save: '保存提示词',
   saving: '正在保存…',
   loading: '正在加载整书翻译设置…',

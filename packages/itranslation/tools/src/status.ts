@@ -8,13 +8,13 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { fragmentNumbers } from './chapters'
 import { isDirectory, isFile, listDirNames, renderJson, toolFs } from './io'
-import { alignedRel, auditRel, bookDirRel, chaptersDirRel, glossaryRel, metaRel, outputRel, stateRel, styleRel } from './paths'
+import { alignedRel, auditRel, bookDirRel, chaptersDirRel, glossaryRel, metaRel, outputRel, stateRel } from './paths'
 import { readState } from './state'
 import type { BookPhase, StatusResult } from './types'
 
 const SOURCE_DIR = 'source'
 
-/** Count source files in `books/<slug>/source/`. */
+/** Count source files in `produce/<slug>/source/`. */
 function countMd(names: readonly string[]): number {
   return names.filter(name => name.endsWith('.md')).length
 }
@@ -67,7 +67,6 @@ export function applyStatus(ctx: Context): void {
             properties: {
               state: { type: 'boolean', required: true },
               glossary: { type: 'boolean', required: true },
-              style: { type: 'boolean', required: true },
               audit: { type: 'boolean', required: true },
               aligned: { type: 'boolean', required: true },
               meta: { type: 'boolean', required: true },
@@ -98,7 +97,6 @@ export function applyStatus(ctx: Context): void {
         artifacts: {
           state: false,
           glossary: false,
-          style: false,
           audit: false,
           aligned: false,
           meta: false,
@@ -112,7 +110,6 @@ export function applyStatus(ctx: Context): void {
       result.artifacts = {
         state: await isFile(io, stateRel(args.slug)),
         glossary: await isFile(io, glossaryRel(args.slug)),
-        style: await isFile(io, styleRel(args.slug)),
         audit: await isFile(io, auditRel(args.slug)),
         aligned: await isFile(io, alignedRel(args.slug)),
         meta: await isFile(io, metaRel(args.slug)),

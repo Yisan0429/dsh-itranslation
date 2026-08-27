@@ -1,15 +1,15 @@
 /**
  * Pure book-directory path helpers. Every path is RELATIVE to the session
  * workspace root (`exec.agent.session.header.cwd`, D31), matching the
- * `<cwd>/books/<slug>/` layout in DESIGN.md §5.5 (D70: user input arrives
+ * `<cwd>/produce/<slug>/` layout in DESIGN.md §5.5 (D70: user input arrives
  * under `<cwd>/input/` and the final artifact lands under `<cwd>/output/`).
  * `slugify` comes from the deterministic core engine (D42).
  */
 
 import { slugify } from '@deepseek-ai/dsh-itranslation-core'
 
-/** Top-level books directory under the session workspace root (DESIGN.md §5.5). */
-const BOOKS_DIR = 'books'
+/** Top-level produce directory under the session workspace root (DESIGN.md §5.5). */
+const PRODUCE_DIR = 'produce'
 
 /** User input directory: E2M-produced Markdown books the user drops here (D70). */
 const INPUT_DIR = 'input'
@@ -24,7 +24,7 @@ export function bookSlug(title: string): string {
 
 /** Book directory path, relative to the session workspace root. */
 export function bookDirRel(slug: string): string {
-  return `${BOOKS_DIR}/${slug}`
+  return `${PRODUCE_DIR}/${slug}`
 }
 
 /** `state.json` path (chapter structure only, D57). */
@@ -55,11 +55,6 @@ export function fragmentRel(slug: string, index: number, fragment: number): stri
 /** `glossary.json` path. */
 export function glossaryRel(slug: string): string {
   return `${bookDirRel(slug)}/glossary.json`
-}
-
-/** `style.md` path (written by the pre-read subagent). */
-export function styleRel(slug: string): string {
-  return `${bookDirRel(slug)}/style.md`
 }
 
 /** `audit-report.md` path (written by the review process). */

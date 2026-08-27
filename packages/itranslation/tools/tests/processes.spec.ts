@@ -9,6 +9,10 @@ function call(name: string, time: number, description: string): SessionEventLike
   return event('tool/call', time, { name, arguments: JSON.stringify({ description }), turn: 1, step: 1 })
 }
 
+function sendMessage(time: number, message: string): SessionEventLike {
+  return event('tool/call', time, { name: 'send_message', arguments: JSON.stringify({ subagent_id: 'a1', message }), turn: 1, step: 1 })
+}
+
 describe('stepFromLabel', () => {
   it('maps the label convention to pipeline steps', () => {
     expect(stepFromLabel('Pre-read: read the whole book')).toBe('pre-read')
@@ -52,6 +56,54 @@ describe('deriveProcesses', () => {
     const records = deriveProcesses(events)
     expect(records).toHaveLength(2)
     expect(records.every(record => record.step === 'other' && record.notes === undefined)).toBe(true)
+  })
+
+  it('derives a revise record from a send_message with a Revise: prefix', () => {
+    const events = [
+      event('request/header', 1000, { header: { config: { model: 'm1' } } }),
+      call('subagent', 2000, 'Audit translation, write report'),
+      sendMessage(3000, 'Revise: fix the reported issues\nrewrite chapters per the report'),
+    ]
+    const records = deriveProcesses(events)
+    expect(records).toEqual([
+      { step: 'review', model: 'm1', startedAt: new Date(2000).toISOString(), notes: 'Audit translation, write report' },
+      { step: 'revise', model: 'm1', startedAt: new Date(3000).toISOString(), notes: 'Revise: fix the reported issues' },
+    ])
+  })
+
+  it('ignores send_message follow-ups without a step prefix', () => {
+    const events = [
+      call('subagent', 1000, 'Translate chapter 1'),
+      sendMessage(2000, 'please also fix the typo in paragraph 2'),
+    ]
+    const records = deriveProcesses(events)
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ step: 'translate' })
+  })
+
+  it('derives step records from itranslation_dispatch calls', () => {
+    const events = [
+      event('request/header', 1000, { header: { config: { model: 'm1' } } }),
+      event('tool/call', 2000, { name: 'itranslation_dispatch', arguments: JSON.stringify({ slug: 'sample', step: 'pre-read', inputPath: 'input/sample.md' }) }),
+      event('tool/call', 3000, { name: 'itranslation_dispatch', arguments: JSON.stringify({ slug: 'sample', step: 'translate', chapter: 3 }) }),
+      event('tool/call', 4000, { name: 'itranslation_dispatch', arguments: JSON.stringify({ slug: 'sample', step: 'audit' }) }),
+      event('tool/call', 5000, { name: 'itranslation_dispatch', arguments: JSON.stringify({ slug: 'sample', step: 'revise', childId: 'c1' }) }),
+    ]
+    const records = deriveProcesses(events)
+    expect(records).toEqual([
+      { step: 'pre-read', model: 'm1', startedAt: new Date(2000).toISOString(), notes: 'Pre-read: sample' },
+      { step: 'translate', model: 'm1', startedAt: new Date(3000).toISOString(), notes: 'Translate chapter 3: sample' },
+      { step: 'review', model: 'm1', startedAt: new Date(4000).toISOString(), notes: 'Audit: sample' },
+      { step: 'revise', model: 'm1', startedAt: new Date(5000).toISOString(), notes: 'Revise: sample' },
+    ])
+  })
+
+  it('skips itranslation_dispatch calls with an unrecognized step', () => {
+    const events = [
+      event('tool/call', 1000, { name: 'itranslation_dispatch', arguments: JSON.stringify({ slug: 'sample', step: 'bogus' }) }),
+      event('tool/call', 2000, { name: 'itranslation_dispatch', arguments: 'not-json' }),
+    ]
+    expect(deriveProcesses(events)).toEqual([])
   })
 
   it('sums the parent LLM usage into one agent record', () => {

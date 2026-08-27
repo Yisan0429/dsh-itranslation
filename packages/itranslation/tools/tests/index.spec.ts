@@ -12,7 +12,7 @@ describe('tools package entry', () => {
     expect(typeof Config).toBe('function')
   })
 
-  it('registers the seven deterministic tools', () => {
+  it('registers the ten deterministic tools', () => {
     const captured = captureCtx()
     apply(captured.ctx, {})
     const toolNames = captured.registered.map(definition => definition.name)
@@ -20,6 +20,9 @@ describe('tools package entry', () => {
       'itranslation_prepare',
       'itranslation_segment',
       'itranslation_glossary',
+      'itranslation_scoped_read',
+      'itranslation_scoped_write',
+      'itranslation_dispatch',
       'itranslation_align',
       'itranslation_assemble',
       'itranslation_status',
@@ -37,6 +40,6 @@ describe('tools package entry', () => {
   it('accepts a custom over-long threshold', () => {
     const captured = captureCtx()
     expect(() => { apply(captured.ctx, { overlongThresholdBytes: 64 }) }).not.toThrow()
-    expect(captured.registered).toHaveLength(7)
+    expect(captured.registered).toHaveLength(10)
   })
 })

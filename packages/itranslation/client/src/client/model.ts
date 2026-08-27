@@ -121,7 +121,7 @@ function prepareBody(value: unknown): SummaryBody {
   const slug = stringField(root.slug)
   const chapters = arrayField(root.chapters)
   const detail: string[] = []
-  if (slug !== null) detail.push(`Book dir: books/${slug}`)
+  if (slug !== null) detail.push(`Book dir: produce/${slug}`)
   detail.push(`Chapters: ${chapters?.length ?? 0}`)
   return { headline: title ?? 'Prepared', detail, tone: 'ok' }
 }

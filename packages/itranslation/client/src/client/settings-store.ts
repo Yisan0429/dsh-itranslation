@@ -17,20 +17,26 @@ import { createSnapshotStore } from '@deepseek-ai/dsh-client-runtime/client'
 /** Settings namespace owned by the itranslation preset (mirrors the Host-side constant). */
 export const ITRANSLATION_SETTINGS_NAMESPACE = 'itranslation'
 
-/** The four LLM prompt templates edited from the settings page. */
+/** The LLM prompt templates and pipeline configuration edited from the settings page. */
 export interface ItranslationSettingsValue {
   preReadPrompt: string
   translatePrompt: string
   auditPrompt: string
   revisePrompt: string
+  /** Target language for the pipeline run. */
+  targetLanguage: string
+  /** The book to translate (`input/<file>.md`); empty = auto-discover. */
+  inputFile: string
 }
 
-/** Empty by design: the page provides blank textareas; users fill their own prompts. */
+/** Empty by design: the page provides blank fields; users fill their own values. */
 export const DEFAULT_ITRANSLATION_SETTINGS: ItranslationSettingsValue = {
   preReadPrompt: '',
   translatePrompt: '',
   auditPrompt: '',
   revisePrompt: '',
+  targetLanguage: '简体中文',
+  inputFile: '',
 }
 
 /** Page snapshot: load state, write gate, resolved value, and save errors. */
@@ -88,6 +94,8 @@ export function readSettingsValue(value: unknown): ItranslationSettingsValue {
     translatePrompt: readPrompt(root.translatePrompt),
     auditPrompt: readPrompt(root.auditPrompt),
     revisePrompt: readPrompt(root.revisePrompt),
+    targetLanguage: readPrompt(root.targetLanguage) || '简体中文',
+    inputFile: readPrompt(root.inputFile),
   }
 }
 
@@ -297,5 +305,13 @@ export class ItranslationSettingsController {
 
   readonly setRevisePrompt = (value: string): void => {
     this.patchValue({ ...this.store.getSnapshot().value, revisePrompt: value })
+  }
+
+  readonly setTargetLanguage = (value: string): void => {
+    this.patchValue({ ...this.store.getSnapshot().value, targetLanguage: value })
+  }
+
+  readonly setInputFile = (value: string): void => {
+    this.patchValue({ ...this.store.getSnapshot().value, inputFile: value })
   }
 }

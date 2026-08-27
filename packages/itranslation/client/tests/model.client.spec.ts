@@ -112,7 +112,7 @@ describe('summarizeToolCall', () => {
     expect(summarizeToolCall('itranslation_prepare', settled(value))).toEqual({
       title: 'Prepare book',
       headline: '示例书',
-      detail: ['Book dir: books/shi-li-shu', 'Chapters: 1'],
+      detail: ['Book dir: produce/shi-li-shu', 'Chapters: 1'],
       tone: 'ok',
     })
   })
@@ -155,8 +155,8 @@ describe('summarizeToolCall', () => {
     expect(summarizeToolCall('itranslation_align', settled({ ok: true }))).toEqual({
       title: 'Alignment preview', headline: 'Aligned 0 chapters', detail: [], tone: 'ok',
     })
-    expect(summarizeToolCall('itranslation_assemble', settled({ ok: true, outputFile: 'books/x/x.md' }))).toEqual({
-      title: 'Assemble book', headline: 'Book assembled', detail: ['Output: books/x/x.md'], tone: 'ok',
+    expect(summarizeToolCall('itranslation_assemble', settled({ ok: true, outputFile: 'produce/x/x.md' }))).toEqual({
+      title: 'Assemble book', headline: 'Book assembled', detail: ['Output: produce/x/x.md'], tone: 'ok',
     })
     expect(summarizeToolCall('itranslation_assemble', settled({ ok: true }))).toEqual({
       title: 'Assemble book', headline: 'Book assembled', detail: [], tone: 'ok',

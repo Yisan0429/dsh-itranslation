@@ -24,14 +24,14 @@ describe('chapterTranslation', () => {
 
   it('reads the single chapter file when present', async () => {
     const { mem, io: fsio } = io()
-    mem.seed('books/s/chapters/1.md', '第一段\n\n第二段')
+    mem.seed('produce/s/chapters/1.md', '第一段\n\n第二段')
     expect(await chapterTranslation(fsio, 's', 1)).toBe('第一段\n\n第二段')
   })
 
   it('joins sorted fragments when no single file exists', async () => {
     const { mem, io: fsio } = io()
-    mem.seed('books/s/chapters/1.2.md', '第二片')
-    mem.seed('books/s/chapters/1.1.md', '第一片')
+    mem.seed('produce/s/chapters/1.2.md', '第二片')
+    mem.seed('produce/s/chapters/1.1.md', '第一片')
     expect(await chapterTranslation(fsio, 's', 1)).toBe('第一片\n\n第二片')
   })
 

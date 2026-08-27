@@ -9,6 +9,7 @@ import type { Context } from '@deepseek-ai/cordis'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { isFile, readJson, renderJson, toolFs, writeJson } from './io'
 import { glossaryRel } from './paths'
+import { findScopeForSession } from './scope'
 import { readState } from './state'
 import type { GlossaryEntry, GlossaryResult } from './types'
 
@@ -150,6 +151,15 @@ export function applyGlossary(ctx: Context): void {
     },
     async execute(args, exec) {
       const io = toolFs(ctx, exec)
+      // Scope pin: a pipeline child (a session with a scope file) may only
+      // touch its own book's glossary; the main agent stays unrestricted.
+      const sessionId = exec.agent?.session.id
+      if (sessionId !== undefined) {
+        const scope = await findScopeForSession(io, String(sessionId))
+        if (scope !== undefined && scope.slug !== args.slug) {
+          throw new Error(`拒绝操作：本子代理只能操作书目「${scope.slug}」的术语表，不能操作「${args.slug}」`)
+        }
+      }
       await readState(io, args.slug)
       const source = args.source ?? 'manual'
       const set = (args.set ?? []).map(entry => normalizeEntry(entry, source))

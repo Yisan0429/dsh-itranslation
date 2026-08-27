@@ -20,12 +20,16 @@ import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 /** Settings namespace owned by the itranslation preset (mirrors the browser-side store constant). */
 export const ITRANSLATION_SETTINGS_NAMESPACE = 'itranslation'
 
-/** The four LLM prompts editable from the settings page. */
+/** The four LLM prompts plus the automatic pipeline configuration. */
 interface ItranslationSettings {
   preReadPrompt: string
   translatePrompt: string
   auditPrompt: string
   revisePrompt: string
+  /** Target language for this pipeline run; empty/absent falls back to 简体中文. */
+  targetLanguage: string
+  /** The book to translate: an `input/<file>.md` path; empty = auto-discover the single .md under input/. */
+  inputFile: string
 }
 
 /**
@@ -39,6 +43,8 @@ export const ItranslationSettingsSchema: z<ItranslationSettings> = z.object({
   translatePrompt: z.string().default(DEFAULT_PROMPTS.translatePrompt),
   auditPrompt: z.string().default(DEFAULT_PROMPTS.auditPrompt),
   revisePrompt: z.string().default(DEFAULT_PROMPTS.revisePrompt),
+  targetLanguage: z.string().default('简体中文'),
+  inputFile: z.string().default(''),
 })
 
 /**

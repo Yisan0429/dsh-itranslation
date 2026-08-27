@@ -42,7 +42,7 @@ describe('parseState', () => {
 describe('readState', () => {
   it('reads and validates state.json', async () => {
     const { mem, io: fsio } = io()
-    mem.seed('books/s/state.json', '{"title":"三体","chapters":[{"index":1,"title":"一"}]}')
+    mem.seed('produce/s/state.json', '{"title":"三体","chapters":[{"index":1,"title":"一"}]}')
     expect(await readState(fsio, 's')).toEqual({ title: '三体', chapters: [{ index: 1, title: '一' }] })
   })
 })

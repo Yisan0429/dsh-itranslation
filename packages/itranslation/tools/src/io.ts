@@ -60,9 +60,16 @@ export function requireCwd(exec: ToolRunContext): string {
  * fenced against the SESSION workspace root instead of the host's deployment
  * fallback (which can differ from the session cwd). Without a mounted service
  * this returns `undefined` and the backend's default fence applies.
+ *
+ * The cordis `Context` proxy throws `cannot get property "x" without inject`
+ * on a bare property read of a service the executing fiber never declared, so
+ * the lookup MUST go through the safe `ctx.get(name)` accessor (which returns
+ * `undefined` when nothing provides the service). This mirrors the harness's
+ * own fs tools (`tool-fs` resolves `ctx.get('sandboxPolicy')`).
  */
 function resolveSandboxPolicy(ctx: unknown, exec: ToolRunContext): ToolSandboxPolicy | undefined {
-  const service = (ctx as { sandboxPolicy?: SandboxPolicyServiceLike }).sandboxPolicy
+  const get = (ctx as { get?: (name: string) => unknown }).get
+  const service = get === undefined ? undefined : (get.call(ctx, 'sandboxPolicy') as SandboxPolicyServiceLike | undefined)
   if (service === undefined) return undefined
   return service.resolve(exec.agent === undefined ? {} : { session: exec.agent.session })
 }

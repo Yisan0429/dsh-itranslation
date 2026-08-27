@@ -38,11 +38,18 @@ const PROMPT_FIELDS = [
   { key: 'revisePrompt', labelKey: 'revise' },
 ] as const
 
+const CONFIG_FIELDS = [
+  { key: 'targetLanguage', labelKey: 'targetLanguage' },
+  { key: 'inputFile', labelKey: 'inputFile' },
+] as const
+
 const SETTERS = {
   preReadPrompt: (controller: ItranslationSettingsController, value: string) => { controller.setPreReadPrompt(value) },
   translatePrompt: (controller: ItranslationSettingsController, value: string) => { controller.setTranslatePrompt(value) },
   auditPrompt: (controller: ItranslationSettingsController, value: string) => { controller.setAuditPrompt(value) },
   revisePrompt: (controller: ItranslationSettingsController, value: string) => { controller.setRevisePrompt(value) },
+  targetLanguage: (controller: ItranslationSettingsController, value: string) => { controller.setTargetLanguage(value) },
+  inputFile: (controller: ItranslationSettingsController, value: string) => { controller.setInputFile(value) },
 } as const
 
 /**
@@ -65,6 +72,23 @@ export function ItranslationSettingsSection(props: ItranslationSettingsProps): R
     state.missing
       ? createElement('p', { className: css.missing }, t('missing'))
       : null,
+    createElement('p', { className: css.configIntro }, t('configIntro')),
+    CONFIG_FIELDS.map(field => createElement(
+      'label',
+      { key: field.key, className: css.field },
+      createElement('span', { className: css.fieldLabel }, t(field.labelKey)),
+      createElement(
+        'input',
+        {
+          className: css.configInput,
+          type: 'text',
+          value: state.value[field.key],
+          disabled,
+          placeholder: t(field.labelKey),
+          onChange: (event: ChangeEvent<HTMLInputElement>) => { SETTERS[field.key](controller, event.target.value) },
+        },
+      ),
+    )),
     PROMPT_FIELDS.map(field => createElement(
       'label',
       { key: field.key, className: css.field },

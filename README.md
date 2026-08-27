@@ -8,11 +8,11 @@
 <h1 align="center">Itranslation × DSH</h1>
 <p align="center"><strong>整本书翻译生产线 · DeepSeek Harness Agent Preset</strong></p>
 <p align="center">
-  Markdown → 全本中文译文<br>
+  Markdown → 全本译文（默认简体中文）<br>
   确定性章节识别 · 空行分段 · 子代理逐章翻译 · 软对齐组装 · 全书审查 · 定向修订 · meta.json 证据链
 </p>
 
-> 开发接近尾声：确定性引擎、六个工具、client UI 与部署链入均已落地并通过全量检查闸（类型检查 / lint / 逐文件 100% 覆盖率 / knip / publint / jscpd）。待办：用样本短书跑通九步端到端冒烟并产出 `meta.json`（当场人工验收）。
+> 当前状态：确定性引擎、十个工具、client UI 与部署链入均已落地，并通过全量检查闸（类型检查 / lint / 逐文件 100% 覆盖率 / knip / publint / jscpd）。可直接链入本机 DSH 使用。
 
 ---
 
@@ -56,13 +56,14 @@ cd ~/.dsh/profiles/web && pnpm install && dsh web   # 重启生效
 
 ## 使用
 
-把 E2M 转出的 Markdown 放进会话工作区的 `input/`，将书交给 agent。你在**三处停点**回应，其余（预读、分章翻译、组装、审查）全自动：
+把 E2M 转出的 Markdown 放进会话工作区的 `input/`（或在设置页指定 `inputFile`），将书交给 agent。目标语言在设置页 `targetLanguage` 配置（默认 `简体中文`），无需在会话中询问。你在**两处停点**回应，其余（预读、分章翻译、组装、审查）全自动：
 
 | 停点 | 时机 | 你要做的 |
 |---|---|---|
-| ① 目标语言 | 动手翻译前 | 只回答一个问题：目标语言。体裁、风格、术语模式全自动，不会多问 |
-| ② 术语表 | 预读完成、`glossary.json` 生成后 | 可直接编辑该文件增删术语，确认后 agent 才开始翻译 |
-| ③ 审查报告 | 全书译完、报告出来后 | 过目 `audit-report.md`：进入修订（只改报告指出的问题段），或直接出成品 |
+| ① 术语表 | 预读完成、`glossary.json` 生成后 | 可直接编辑该文件增删术语，确认后 agent 才开始翻译 |
+| ② 审查报告 | 全书译完、报告出来后 | 过目 `audit-report.md`：进入修订（只改报告指出的问题段），或直接出成品 |
+
+**失败与中断**：任何步骤的工具调用报错（如 `prepare` 拒绝已录入的书）、派发被取消、或你打断/纠正 agent 时，agent 立即停止：只原样报告该步错误（若有），不做任何自行处置（不重试、不换路径、不继续下一步、不提问、不宣告下一步），等待你的明确指示。两个停点是 agent 仅有的两次提问；其余任何情况（含出错、被取消、被打断后）它都不提问、不决策。
 
 工作流与产物：
 
@@ -70,13 +71,13 @@ cd ~/.dsh/profiles/web && pnpm install && dsh web   # 重启生效
 input/<书>.md                              output/<slug>.md
     │  prepare（录入，## 章边界）                 ▲  assemble（组装 + meta.json）
     ▼                                          │
-books/<slug>/                                 │
+produce/<slug>/                               │
     ├─ state.json         章结构                │
     ├─ source/<n>.md      清理后原文备份（审查依据）
     ├─ chapters/<n>.md    各章译文（子代理逐章落盘；超长章分片 <n>.<k>.md）
-    ├─ glossary.json      术语表（停点②可编辑）
-    ├─ style.md           统一风格说明
-    ├─ audit-report.md    全书审查报告（停点③过目）
+    ├─ glossary.json      术语表（停点①可编辑）
+    ├─ analysis.md        书档案（背景/摘要/逻辑线 + 完整风格指南）
+    ├─ audit-report.md    全书审查报告（停点②过目）
     └─ meta.json          证据链（模型/耗时/token/修订记录）
 ```
 
@@ -90,11 +91,11 @@ books/<slug>/                                 │
 
 ### LLM 提示词（设置页，命名空间 `itranslation`）
 
-四个 LLM 步骤（预读/翻译/审查/修订）的附加提示词模板，在 DSH 设置页「整书翻译」分区编辑（经插件自有路由 `/_dsh/itranslation/settings` 读写）。**默认值为内置成品提示词**（core 包 `DEFAULT_PROMPTS`，设置页与 `itranslation_prompts` 工具共用同一真相源）；主代理派发子代理前用 `itranslation_prompts` 读取对应步骤提示词并附加到任务说明末尾，留空/清空即回退到内置默认：
+四个 LLM 步骤（预读/翻译/审查/修订）的附加提示词模板，在 DSH 设置页「整书翻译」分区编辑（经插件自有路由 `/_dsh/itranslation/settings` 读写）。**默认值为内置成品提示词**（core 包 `DEFAULT_PROMPTS`，设置页与 `itranslation_prompts` 工具共用同一真相源）；`itranslation_dispatch` 派发子代理时自动读取对应提示词并组装任务文本，留空/清空即回退到内置默认。`itranslation_prompts` 仅作只读查看/调试用，主代理在流水线中不应调用。同一设置页还包含 `targetLanguage`（默认 `简体中文`）与 `inputFile`（留空自动发现 `input/` 下唯一 .md）。四个提示词键如下：
 
 | 键 | 默认 | 说明 |
 |---|---|---|
-| `preReadPrompt` | 内置预读提示词 | 预读子代理附加提示词（通读全书 → 直接落盘 `style.md` + 高价值 `glossary.json`） |
+| `preReadPrompt` | 内置预读提示词 | 预读子代理附加提示词（通读全书 → 直接落盘 `analysis.md`（含完整风格指南）+ 高价值 `glossary.json`） |
 | `translatePrompt` | 内置翻译提示词 | 翻译子代理附加提示词（查表术语、段落数一致、不含章标题） |
 | `auditPrompt` | 内置审查提示词 | 审查模型附加提示词（5 维度、按章/段定位、不分级） |
 | `revisePrompt` | 内置修订提示词 | 修订模型附加提示词（只改报告指出的问题段） |
@@ -107,35 +108,38 @@ books/<slug>/                                 │
 
 **标题翻译（程序级）**：组装时书名行与 `##` 章标题自动经 `glossary.json` 译成目标语言（`## The First Storm` → `## 第一场风暴`；glossary 无对应条目时保留原文）。空标题首章正文若以 `# <书名>` 行开头（E2M 标题行落入正文的产物），组装会丢弃该段及其译文，确保书名行只出现一次。
 
-### 七个确定性工具（tools）
+### 十个确定性工具（tools）
 
 | 工具 | 作用 | 关键参数 | 主要输出 |
 |---|---|---|---|
-| `itranslation_prepare` | 一本书录入：读 `input/` 下 Markdown → 识别 `##` 章边界 → 落原文备份与章结构；已准备过的书拒绝覆盖 | `path`（必填）、`title` | `slug`、`chapters`、`sourceFiles` |
+| `itranslation_prepare` | 一本书录入：读 `input/` 下 Markdown → 识别 `##` 章边界 → 落原文备份与章结构；已准备过的书拒绝覆盖 | `path`、`title` | `slug`、`chapters`、`sourceFiles` |
 | `itranslation_segment` | 分段报告（只读）：每章段数/句数/字节，标记超长章 | `slug`、`chapter`（可选） | `chapters[]`、`overlongChapters[]` |
 | `itranslation_glossary` | 术语表管理：按 term 增补（set）/删除（remove）并回写；不带参数时只读 | `slug`、`set[]`、`remove[]`、`source` | `entries[]` |
+| `itranslation_scoped_read` | 子代理专用受限读取：只读本步骤派发时白名单内的文件，白名单外一律拒绝 | `file_path` | `ok`、`path`、`content` |
+| `itranslation_scoped_write` | 子代理专用受限写入：只写本步骤派发时白名单内的文件，白名单外一律拒绝 | `file_path`、`content` | `ok`、`path` |
+| `itranslation_dispatch` | 确定性派发流水线子代理：按步骤组装任务文本并后台启动/续发子代理（pre-read/translate/audit/revise）；revise 复用审计子代理会话 | `slug`、`step`、`language`、`chapter`、`childId` | `ok`、`step`、`subagentId`/`messageId` |
 | `itranslation_align` | 组装校验：读原文与译文（含分片）→ 空行比对段数并组装 → 写 `aligned.md` 预览（标题经 glossary 翻译） | `slug` | `ok`、`chapters[]`、`mismatch` |
 | `itranslation_assemble` | 出成品 + 证据链：前置 `state.json`/`chapters/`/`audit-report.md` 齐全才执行 → 写 `output/<slug>.md`（标题经 glossary 翻译）与 `meta.json`（processes 从会话日志自动导出：模型/起止/用量；`processes[]` 参数只作补充 notes） | `slug`、`processes[]`（可选 notes） | `ok`、`outputFile`、`metaFile` |
 | `itranslation_status` | 进度与证据摘要（只读）：产物存在性、已译章数、工作阶段 | `slug` | `artifacts{}`、`phase` |
 | `itranslation_prompts` | 读取四个 LLM 步骤的附加提示词（只读）：设置页已保存值优先，未设置返回内置默认 | 无 | `ok`、`source`、`prompts{}` |
 
-所有工具执行前校验前置产物与步骤顺序，不齐即拒绝（硬拦只在确定性工具处）；失配等数据条件返回结构化 `ok:false` 由 agent 转问用户。
+主流程工具执行前会校验前置产物与步骤顺序，不齐即拒绝（硬拦只在确定性工具处）；失配等数据条件返回结构化 `ok:false` 由 agent 转问用户。
 
 ### 子代理并行翻译
 
-一章一个 `spawn` 子代理（独立上下文、模型固定）；任务只注入该章文本，风格说明与术语表由子代理直读书级目录文件（单一真相源，不占注入预算）；超长章由主 agent 拆分并留痕，分片各派一个子代理。并发/分批由主 agent 自定。
+一章一个 `spawn` 子代理（独立上下文、模型固定），由 `itranslation_dispatch` 统一组装任务并后台启动；任务只注入固定提示词与路径，章节正文、风格说明与术语表由子代理经 `itranslation_scoped_read` 直读书级目录文件（单一真相源，不占注入预算）；超长章由主 agent 拆分并留痕，分片各派一个子代理。并发/分批由主 agent 自定。
 
 ### 术语表范围约束
 
-`glossary.json` 的收录是**主动识别关键术语**，而非穷举名词：必收书名与各章章名（组装阶段据此生成中文标题，term 须与原文标题完全一致、区分大小写）、专名（人名/地名/机构名，音译即取舍）、不常见或领域词、有争议或歧义译法、抽象概念词；不得用只有唯一自然译法的普通名词凑数。**硬上限 200 条**——`itranslation_glossary` 超过即拒绝写入；单次批量新增超过 100 条返回软警告（不拦截）。约束落在 preset persona（预读指令）与工具护栏中，停点②的人工审阅仍可增删。
+`glossary.json` 的收录是**主动识别关键术语**，而非穷举名词：必收书名与各章章名（组装阶段据此生成中文标题，term 须与原文标题完全一致、区分大小写）、专名（人名/地名/机构名，音译即取舍）、不常见或领域词、有争议或歧义译法、抽象概念词；不得用只有唯一自然译法的普通名词凑数。**硬上限 200 条**——`itranslation_glossary` 超过即拒绝写入；单次批量新增超过 100 条返回软警告（不拦截）。约束落在 preset persona（预读指令）与工具护栏中，停点①的人工审阅仍可增删。
 
 ### 全书审查与定向修订
 
-全书译完统一审查（不逐章审）：独立审查模型按「章/段」对照原文备份定位问题，产出 `audit-report.md`（5 维度：忠实度与准确性、术语与专名一致性、通顺与可读性、格式标点数字、体例与信息完整性；不分级、只列问题清单）。报告交用户过目（停点③），修订只重译问题段、不按章重跑；术语改动回写 `glossary.json` 并留痕。
+全书译完统一审查（不逐章审）：独立审查模型按「章/段」对照原文备份定位问题，产出 `audit-report.md`（5 维度：忠实度与准确性、术语与专名一致性、通顺与可读性、格式标点数字、体例与信息完整性；不分级、只列问题清单）。报告交用户过目（停点②），修订只重译问题段、不按章重跑；术语改动回写 `glossary.json` 并留痕。
 
 ### Client UI
 
-Run 卡进度：六个 `itranslation_*` 工具各一行状态行（运行中/完成/失配/失败），从冻结的 call/result 派生中文摘要；提示词设置页：四个 LLM 提示词文本框。视觉对齐 harness 设计语言（共享 primitives + CSS Module + `--dsw-alias-*` token）。
+Run 卡进度：六个主流程 `itranslation_*` 工具各一行状态行（运行中/完成/失配/失败），从冻结的 call/result 派生中文摘要；提示词设置页：四个 LLM 提示词文本框，外加目标语言与输入文件配置。视觉对齐 harness 设计语言（共享 primitives + CSS Module + `--dsw-alias-*` token）。
 
 ## 架构
 
@@ -147,7 +151,7 @@ Run 卡进度：六个 `itranslation_*` 工具各一行状态行（运行中/完
                             │              │              │
               ┌─────────────▼──────┐  ┌────▼─────┐  ┌─────▼──────────┐
               │  tools（Host 工具面）│  │  client  │  │ agent（主/子）  │
-              │  六确定性工具 +     │  │ UI（Run卡 │  │ 预读/翻译/审查/ │
+              │  十个确定性工具 +   │  │ UI（Run卡 │  │ 预读/翻译/审查/ │
               │  书级状态文件       │  │ +设置页）  │  │ 修订（LLM 层）  │
               └─────────────┬──────┘  └──────────┘  └────────────────┘
                             │ 依赖
@@ -157,7 +161,7 @@ Run 卡进度：六个 `itranslation_*` 工具各一行状态行（运行中/完
               └────────────────────┘
 ```
 
-LLM 层由 agent 直接调 DSH `llm` 服务与 `subagent` 工具完成，插件工具只负责确定性文本层与书级状态文件——无 Python 依赖、不自建 API 客户端。
+LLM 层由 `itranslation_dispatch` 经 DSH `subagents` 服务派发子代理完成；插件工具负责确定性文本层、子代理文件围栏与书级状态文件——无 Python 依赖、不自建 API 客户端。
 
 ## 项目结构
 
@@ -165,21 +169,21 @@ LLM 层由 agent 直接调 DSH `llm` 服务与 `subagent` 工具完成，插件�
 dsh-itranslation/
 ├── packages/itranslation/
 │   ├── core/      确定性文本引擎（章节识别/分段/组装），零 DSH 依赖
-│   ├── tools/     Host 工具面：六个 itranslation_* 工具与书级状态文件管理
-│   └── client/    Client UI：Run 卡进度、提示词设置页（host/client 双面构建）
+│   ├── tools/     Host 工具面：十个 itranslation_* 工具（主流程、派发、子代理受限读写）与书级状态文件管理
+│   └── client/    Client UI：Run 卡进度、提示词/目标语言/输入文件设置页（host/client 双面构建）
 ├── presets/itranslation/   agent preset 组合（agent.cordis.yml + preset.yml）
 ├── scripts/       lefthook 安装、commit-msg 校验、web 部署链入（幂等）
 ├── input/         用户放入 E2M 转出的 Markdown
-├── books/         书级工作目录（<slug>/，会话期间产物）
+├── produce/       书级工作目录（<slug>/，会话期间产物）
 ├── output/        最终成品（<slug>.md）
-└── DESIGN.md / DEVELOPMENT.md / AGENTS.md / README.md   仓库文档（有且仅有四份）
+└── README.md   产品与使用文档（历史设计与决策记录见 archive/，不随发布分发）
 ```
 
 ## 开发
 
 检查闸（提交前必过）：`typecheck`（host + client 双聚合）→ `lint`（oxlint）→ `test:coverage`（逐文件 100% 覆盖率）→ `hygiene`（knip + publint）→ `duplication`（jscpd）。lefthook 在 pre-commit 跑增量 lint + 全量 typecheck，commit-msg 校验 conventional commits，pre-push 跑测试与覆盖率。
 
-规范与决策：设计唯一依据 [DESIGN.md](./DESIGN.md)，开发规范与决策日志 [DEVELOPMENT.md](./DEVELOPMENT.md)。
+设计/开发决策历史记录已归档至 `archive/`（本地保留，不随发布分发）。
 
 ## License
 

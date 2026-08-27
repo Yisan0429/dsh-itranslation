@@ -21,6 +21,8 @@ const PROMPTS = {
   translatePrompt: 'translate prompt',
   auditPrompt: 'audit prompt',
   revisePrompt: 'revise prompt',
+  targetLanguage: '简体中文',
+  inputFile: '',
 }
 
 const SECTION_COPY = {
@@ -395,6 +397,8 @@ describe('ItranslationSettingsSection', () => {
       translatePrompt: 'translatePrompt',
       auditPrompt: 'auditPrompt',
       revisePrompt: 'revisePrompt',
+      targetLanguage: '简体中文',
+      inputFile: '',
     })
     expect(save).toHaveBeenCalled()
   })

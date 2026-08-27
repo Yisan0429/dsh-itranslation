@@ -45,6 +45,20 @@ export interface SessionEventLike {
 /** Subagent tool names whose dispatch labels open a pipeline-step record. */
 const SUBAGENT_TOOL_NAMES = new Set(['subagent', 'subagent_fork'])
 
+/**
+ * `itranslation_dispatch` opens a pipeline-step record too: the step rides its
+ * `arguments` (`step`, `slug`, `chapter`), and it is the only dispatch path
+ * the pipeline uses now.
+ */
+const DISPATCH_TOOL_NAME = 'itranslation_dispatch'
+
+/**
+ * `send_message` continues an existing subagent session instead of dispatching
+ * a new one. The pipeline still needs the step (revision reuses the audit
+ * session), so the step label rides the message prefix ("Revise: …").
+ */
+const SEND_MESSAGE_TOOL_NAME = 'send_message'
+
 /** Map a subagent `description` label to a pipeline step name (label convention). */
 export function stepFromLabel(label: string): string {
   const normalized = label.trim()
@@ -58,12 +72,32 @@ export function stepFromLabel(label: string): string {
 /** Parse a tool-call `arguments` JSON string and return its `description`, or undefined. */
 function labelFromArguments(rawArguments: string | undefined): string | undefined {
   if (rawArguments === undefined) return undefined
+  let parsed: unknown
   try {
-    const parsed = JSON.parse(rawArguments) as { description?: unknown }
-    return typeof parsed.description === 'string' && parsed.description !== '' ? parsed.description : undefined
+    parsed = JSON.parse(rawArguments)
   } catch {
     return undefined
   }
+  const record = parsed as { description?: unknown; message?: unknown; step?: unknown; slug?: unknown; chapter?: unknown }
+  if (typeof record.description === 'string' && record.description !== '') return record.description
+  // send_message continues a subagent session: the pipeline step rides the
+  // message's leading step prefix ("Revise: …"). Only a recognized prefix
+  // counts — a plain follow-up is not a pipeline step.
+  if (typeof record.message === 'string') {
+    const message = record.message.trim()
+    const prefix = message.split(/[\s:：]/)[0] ?? ''
+    if (prefix !== '' && stepFromLabel(prefix) !== 'other') {
+      return message.split('\n')[0] ?? undefined
+    }
+  }
+  // itranslation_dispatch: the step, slug and chapter live in the arguments.
+  if (record.step === 'pre-read' && typeof record.slug === 'string') return `Pre-read: ${record.slug}`
+  if (record.step === 'translate' && typeof record.chapter === 'number') {
+    return `Translate chapter ${record.chapter}${typeof record.slug === 'string' ? `: ${record.slug}` : ''}`
+  }
+  if (record.step === 'audit' && typeof record.slug === 'string') return `Audit: ${record.slug}`
+  if (record.step === 'revise' && typeof record.slug === 'string') return `Revise: ${record.slug}`
+  return undefined
 }
 
 /** Sum a usage object; an empty/absent usage yields undefined. */
@@ -110,8 +144,35 @@ export function deriveProcesses(events: readonly SessionEventLike[]): ProcessRec
   for (const event of events) {
     if (event.type !== 'tool/call') continue
     const name = event.data?.name
-    if (name === undefined || !SUBAGENT_TOOL_NAMES.has(name)) continue
+    if (name === undefined) continue
     const label = labelFromArguments(event.data?.arguments)
+    if (name === DISPATCH_TOOL_NAME) {
+      // The dispatch tool opens a step record from its arguments; an
+      // unrecognized step (e.g. a malformed call) is skipped, not recorded.
+      if (label === undefined) continue
+      const record: ProcessRecord = {
+        step: stepFromLabel(label),
+        ...(model === undefined ? {} : { model }),
+        startedAt: new Date(event.time).toISOString(),
+        notes: label,
+      }
+      records.push(record)
+      continue
+    }
+    if (name === SEND_MESSAGE_TOOL_NAME) {
+      // A continued session only opens a step record when its message carries
+      // the step prefix; plain follow-ups stay out of the evidence chain.
+      if (label === undefined) continue
+      const record: ProcessRecord = {
+        step: stepFromLabel(label),
+        ...(model === undefined ? {} : { model }),
+        startedAt: new Date(event.time).toISOString(),
+        notes: label,
+      }
+      records.push(record)
+      continue
+    }
+    if (!SUBAGENT_TOOL_NAMES.has(name)) continue
     const step = label === undefined ? 'other' : stepFromLabel(label)
     const record: ProcessRecord = {
       step,

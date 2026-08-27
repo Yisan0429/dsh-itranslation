@@ -27,4 +27,6 @@ export interface BookState {
   readonly title: string
   /** Chapters in book order; paragraph structure lives in the Markdown itself. */
   readonly chapters: readonly ChapterState[]
+  /** Original input Markdown path (relative to the session cwd), for the pre-read step. */
+  readonly inputPath?: string
 }

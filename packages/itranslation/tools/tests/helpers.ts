@@ -34,8 +34,20 @@ export class MemFs {
   readonly fs = {
     resolve: async (p: string, opts?: { cwd?: string }): Promise<FsTarget> => {
       const displayPath = this.abs(p, opts?.cwd)
+      // Mirror the real fs backend: resolving a path whose parent segment is a
+      // regular file (e.g. `produce/.gitkeep/.scopes/x.json`) throws instead of
+      // normalizing, so lookup bugs of that shape fail loudly in tests too.
+      const segments = displayPath.split('/').filter(segment => segment !== '')
+      let parent = ''
+      for (let i = 0; i < segments.length - 1; i++) {
+        parent = parent === '' ? `/${segments[i]}` : `${parent}/${segments[i]}`
+        if (this.files.has(parent)) {
+          throw new Error(`cannot resolve "${displayPath}": a parent path segment is not a directory`)
+        }
+      }
       return { targetKey: displayPath as never, displayPath }
     },
+    processPath: (target: FsTarget): string => target.displayPath,
     readText: async (target: FsTarget): Promise<string> => {
       const content = this.files.get(target.displayPath)
       if (content === undefined) throw new Error(`ENOENT: ${target.displayPath}`)
