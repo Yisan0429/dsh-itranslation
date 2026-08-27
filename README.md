@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/agent%20preset-Itranslation-536DFE" alt="Preset">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-0.1.0-536DFE" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.0.0-536DFE" alt="Version">
   <img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-lightgrey" alt="Platform">
 </p>
 

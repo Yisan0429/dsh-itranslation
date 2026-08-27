@@ -10,7 +10,7 @@ import { createBookState } from './state'
  * package version so tool runs can record which engine produced a state file
  * (auditable evidence chain, DESIGN.md §1 P1).
  */
-export const engineVersion = '0.1.0'
+export const engineVersion = '1.0.0'
 
 export {
   assembleBook,
