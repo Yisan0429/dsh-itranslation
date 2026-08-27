@@ -85,9 +85,9 @@ function labelFromArguments(rawArguments: string | undefined): string | undefine
   // counts — a plain follow-up is not a pipeline step.
   if (typeof record.message === 'string') {
     const message = record.message.trim()
-    const prefix = message.split(/[\s:：]/)[0] ?? ''
+    const prefix = message.split(/[\s:：]/)[0] as string
     if (prefix !== '' && stepFromLabel(prefix) !== 'other') {
-      return message.split('\n')[0] ?? undefined
+      return message.split('\n')[0]
     }
   }
   // itranslation_dispatch: the step, slug and chapter live in the arguments.
@@ -101,24 +101,21 @@ function labelFromArguments(rawArguments: string | undefined): string | undefine
 }
 
 /** Sum a usage object; an empty/absent usage yields undefined. */
-function sumUsage(events: readonly SessionEventLike[]): ProcessRecord['tokenUsage'] | undefined {
+function sumUsage(events: readonly SessionEventLike[]): NonNullable<ProcessRecord['tokenUsage']> {
   let input = 0
   let output = 0
   let cacheRead = 0
   let cacheWrite = 0
   let reasoning = 0
-  let any = false
   for (const event of events) {
     const usage = event.data?.usage
     if (usage === undefined) continue
-    any = true
     input += usage.inputTokens ?? 0
     output += usage.outputTokens ?? 0
     cacheRead += usage.cacheReadTokens ?? 0
     cacheWrite += usage.cacheWriteTokens ?? 0
     reasoning += usage.reasoningTokens ?? 0
   }
-  if (!any) return undefined
   const result: NonNullable<ProcessRecord['tokenUsage']> = { input, output }
   if (cacheRead > 0) result.cacheReadTokens = cacheRead
   if (cacheWrite > 0) result.cacheWriteTokens = cacheWrite
@@ -186,11 +183,11 @@ export function deriveProcesses(events: readonly SessionEventLike[]): ProcessRec
   // Orchestrator overhead: the parent's own LLM calls with real token usage.
   const usageEvents = events.filter(event => event.type === 'assistant/message' && event.data?.usage !== undefined)
   if (usageEvents.length > 0) {
-    const usage = sumUsage(usageEvents)
+    const usage = sumUsage(events)
     records.push({
       step: 'agent',
       ...(model === undefined ? {} : { model }),
-      ...(usage === undefined ? {} : { tokenUsage: usage }),
+      tokenUsage: usage,
       startedAt: new Date(usageEvents[0]?.time as number).toISOString(),
       finishedAt: new Date(usageEvents[usageEvents.length - 1]?.time as number).toISOString(),
     })

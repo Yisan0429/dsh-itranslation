@@ -1,7 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { DEFAULT_PROMPTS } from '@deepseek-ai/dsh-itranslation-core'
 import { apply } from '../src/index'
-import { captureCtx, fakeExec, run, toolByName, type CapturedCtx } from './helpers'
+import { captureCtx, fakeExec, fakeExecWithAgent, run, toolByName, type CapturedCtx } from './helpers'
 
 /** Recorded calls against the fake subagents service. */
 interface FakeSubagents {
@@ -242,6 +242,32 @@ describe('itranslation_dispatch', () => {
       run(toolByName(captured, 'itranslation_dispatch'), { slug: 'sample', step: 'pre-read', inputPath: 'input/sample.md' }, fakeExec('/ws')),
     ).rejects.toThrow(/subagents 服务不可用/)
   })
+
+  it('renders both dispatch result shapes', () => {
+    const captured = captureCtx('/ws')
+    apply(captured.ctx, {})
+    const definition = toolByName(captured, 'itranslation_dispatch')
+    const started = definition.output.render(
+      { slug: 'sample', step: 'pre-read' },
+      { ok: true, step: 'pre-read', subagentId: 'child-1' },
+    )
+    expect(started).toEqual([{ type: 'text', text: 'started pre-read subagent child-1' }])
+    const revised = definition.output.render(
+      { slug: 'sample', step: 'revise', childId: 'child-1' },
+      { ok: true, step: 'revise', messageId: 'message-1' },
+    )
+    expect(revised).toEqual([{ type: 'text', text: 'revise message message-1 queued for subagent child-1' }])
+  })
+
+  it('rejects when no calling agent is available', async () => {
+    const captured = captureCtx('/ws')
+    ;(captured.ctx as unknown as { get?: (name: string) => unknown }).get = () => undefined
+    apply(captured.ctx, {})
+    await expect(
+      run(toolByName(captured, 'itranslation_dispatch'), { slug: 'sample', step: 'pre-read' }, fakeExecWithAgent(undefined)),
+    ).rejects.toThrow(/requires a calling agent/)
+  })
+
 })
 
 describe('itranslation_scoped_read / itranslation_scoped_write', () => {
@@ -352,4 +378,36 @@ describe('itranslation_scoped_read / itranslation_scoped_write', () => {
     const own = await run(glossary, { slug: 'sample', set: [{ term: 'keeper', translation: '守灯人' }] }, childExec(other))
     expect(own).toMatchObject({ slug: 'sample' })
   })
+
+  it('renders scoped read/write results', () => {
+    const captured = captureCtx('/ws')
+    apply(captured.ctx, {})
+    const read = toolByName(captured, 'itranslation_scoped_read')
+    expect(read.output.render({}, { ok: false, path: 'x', content: '' })).toEqual([{ type: 'text', text: '读取被拒绝' }])
+    expect(read.output.render({}, { ok: true, path: '/p', content: 'c' })).toEqual([{ type: 'text', text: '== /p ==\nc' }])
+    const write = toolByName(captured, 'itranslation_scoped_write')
+    expect(write.output.render({}, { ok: false, path: 'x' })).toEqual([{ type: 'text', text: '写入被拒绝' }])
+    expect(write.output.render({}, { ok: true, path: '/p' })).toEqual([{ type: 'text', text: '已写入 /p' }])
+  })
+
+  it('rejects read/write when the calling session has no id', async () => {
+    const captured = scopedCtx()
+    const noId = { session: { header: { cwd: '/ws' } } }
+    await expect(
+      run(toolByName(captured, 'itranslation_scoped_read'), { file_path: 'produce/sample/analysis.md' }, childExec(noId)),
+    ).rejects.toThrow(/只能在子代理会话中调用/)
+    await expect(
+      run(toolByName(captured, 'itranslation_scoped_write'), { file_path: 'produce/sample/chapters/2.md', content: 'x' }, childExec(noId)),
+    ).rejects.toThrow(/只能在子代理会话中调用/)
+  })
+
+  it('refuses write when the session has no scope file', async () => {
+    const captured = scopedCtx()
+    const write = toolByName(captured, 'itranslation_scoped_write')
+    const orphan = { session: { id: 'no-scope-child', header: { cwd: '/ws' } } }
+    await expect(
+      run(write, { file_path: 'produce/sample/chapters/2.md', content: 'x' }, childExec(orphan)),
+    ).rejects.toThrow(/未找到本子代理的文件访问范围/)
+  })
+
 })

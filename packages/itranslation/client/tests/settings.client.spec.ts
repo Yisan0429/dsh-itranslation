@@ -32,6 +32,9 @@ const SECTION_COPY = {
   translate: 'Translation prompt',
   audit: 'Audit prompt',
   revise: 'Revision prompt',
+  configIntro: 'Automatic pipeline configuration:',
+  targetLanguage: 'Target language',
+  inputFile: 'Input book (input/<file>.md; empty = auto-discover)',
   save: 'Save prompts',
   saving: 'Saving…',
   loading: 'Loading Itranslation settings…',
@@ -313,6 +316,10 @@ describe('ItranslationSettingsController', () => {
     expect(controller.store.getSnapshot().value.auditPrompt).toBe('p3')
     controller.setRevisePrompt('p4')
     expect(controller.store.getSnapshot().value.revisePrompt).toBe('p4')
+    controller.setTargetLanguage('English')
+    expect(controller.store.getSnapshot().value.targetLanguage).toBe('English')
+    controller.setInputFile('input/book.md')
+    expect(controller.store.getSnapshot().value.inputFile).toBe('input/book.md')
   })
 })
 
@@ -401,5 +408,19 @@ describe('ItranslationSettingsSection', () => {
       inputFile: '',
     })
     expect(save).toHaveBeenCalled()
+  })
+
+  it('routes config input edits through the config setters', () => {
+    const { controller, useSnapshot, t } = makeProps({
+      status: 'ready', error: null, writable: true, missing: false,
+      value: { ...DEFAULT_ITRANSLATION_SETTINGS }, revision: 3,
+    })
+    render(createElement(ItranslationSettingsSection, { controller, useSnapshot, t } as never))
+    fireEvent.change(screen.getByLabelText('Target language'), { target: { value: 'English' } })
+    fireEvent.change(screen.getByLabelText('Input book (input/<file>.md; empty = auto-discover)'), { target: { value: 'input/book.md' } })
+    expect(controller.store.getSnapshot().value).toMatchObject({
+      targetLanguage: 'English',
+      inputFile: 'input/book.md',
+    })
   })
 })

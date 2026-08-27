@@ -304,6 +304,18 @@ describe('itranslation_align', () => {
     expect(result).toMatchObject({ ok: true })
   })
 
+  it('translates headings from glossary.json during alignment', async () => {
+    const { captured, exec } = setup()
+    await withChapters(captured, exec, { '1.md': '译一段。\n\n译二段。', '2.md': '译三段。' })
+    captured.mem.seed(`produce/${SLUG}/glossary.json`, JSON.stringify({
+      entries: [{ term: '第一章', translation: '首章' }],
+    }))
+    const result = await run(toolByName(captured, 'itranslation_align'), { slug: SLUG }, exec)
+    expect(result).toMatchObject({ ok: true })
+    expect(captured.mem.read(`produce/${SLUG}/aligned.md`)).toContain('## 首章')
+  })
+
+
   it('returns a structured mismatch when paragraph counts differ', async () => {
     const { captured, exec } = setup()
     await withChapters(captured, exec, { '1.md': '只有一段。', '2.md': '译三段。' })
@@ -369,6 +381,25 @@ describe('itranslation_assemble', () => {
     })
     expect(meta.assembledAt).toBeTypeOf('string')
   })
+
+  it('merges supplied notes when the session log is available', async () => {
+    const { captured } = setup()
+    const exec = {
+      ...fakeExec('/ws'),
+      agent: { session: { header: { cwd: '/ws' }, events: [] } },
+    } as unknown as ToolRunContext
+    await ready(captured, exec)
+    captured.mem.seed(`produce/${SLUG}/audit-report.md`, '# 审查报告\n')
+    const result = await run(
+      toolByName(captured, 'itranslation_assemble'),
+      { slug: SLUG, processes: [{ step: 'translate', notes: '第 1–2 章并行' }] },
+      exec,
+    )
+    expect(result).toMatchObject({ ok: true })
+    const meta = JSON.parse(captured.mem.read(`produce/${SLUG}/meta.json`) ?? '') as MetaFile
+    expect(meta.processes).toEqual([{ step: 'translate', notes: '第 1–2 章并行' }])
+  })
+
 
   it('returns a structured mismatch on paragraph-count failure', async () => {
     const { captured, exec } = setup()

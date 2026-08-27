@@ -8,6 +8,7 @@ import {
   readText,
   renderJson,
   requireCwd,
+  resolveSandboxPolicy,
   toolFs,
   writeJson,
   writeText,
@@ -116,4 +117,30 @@ describe('io helpers over ctx.fs', () => {
     const io = toolFs(ctx, fakeExec('/ws'))
     expect(io.sandboxPolicy).toEqual(policy)
   })
+
+  it('resolveSandboxPolicy passes an empty request without an agent', () => {
+    const policy = { mode: 'workspace-write', workspaceRoot: '/ws' }
+    let received: unknown
+    const ctx = {
+      get() {
+        return { resolve: (request?: unknown) => { received = request; return policy } }
+      },
+    }
+    expect(resolveSandboxPolicy(ctx, fakeExecWithAgent(undefined))).toEqual(policy)
+    expect(received).toEqual({})
+  })
+
+  it('resolveSandboxPolicy passes the session when an agent exists', () => {
+    const policy = { mode: 'workspace-write', workspaceRoot: '/ws' }
+    let received: unknown
+    const ctx = {
+      get() {
+        return { resolve: (request?: unknown) => { received = request; return policy } }
+      },
+    }
+    const exec = fakeExec('/ws')
+    expect(resolveSandboxPolicy(ctx, exec)).toEqual(policy)
+    expect(received).toEqual({ session: exec.agent?.session })
+  })
+
 })

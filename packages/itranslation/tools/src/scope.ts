@@ -86,7 +86,7 @@ export async function writeScope(io: ToolFsContext, slug: string, childId: strin
 }
 
 /** Delay helper that honors the call's cancellation signal. */
-function delay(signal: AbortSignal, ms: number): Promise<void> {
+export function delay(signal: AbortSignal, ms: number): Promise<void> {
   return new Promise((resolve, reject) => {
     if (signal.aborted) {
       reject(signal.reason instanceof Error ? signal.reason : new Error('aborted'))

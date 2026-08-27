@@ -67,7 +67,7 @@ export function requireCwd(exec: ToolRunContext): string {
  * `undefined` when nothing provides the service). This mirrors the harness's
  * own fs tools (`tool-fs` resolves `ctx.get('sandboxPolicy')`).
  */
-function resolveSandboxPolicy(ctx: unknown, exec: ToolRunContext): ToolSandboxPolicy | undefined {
+export function resolveSandboxPolicy(ctx: unknown, exec: ToolRunContext): ToolSandboxPolicy | undefined {
   const get = (ctx as { get?: (name: string) => unknown }).get
   const service = get === undefined ? undefined : (get.call(ctx, 'sandboxPolicy') as SandboxPolicyServiceLike | undefined)
   if (service === undefined) return undefined

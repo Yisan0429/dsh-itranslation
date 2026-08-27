@@ -58,6 +58,18 @@ describe('deriveProcesses', () => {
     expect(records.every(record => record.step === 'other' && record.notes === undefined)).toBe(true)
   })
 
+  it('handles tool calls with missing names or missing arguments', () => {
+    const events = [
+      event('tool/call', 1000, { name: 'subagent' }),
+      event('tool/call', 2000, { arguments: '{"description":"no name"}' }),
+    ]
+    const records = deriveProcesses(events)
+    expect(records).toHaveLength(1)
+    expect(records[0]).toMatchObject({ step: 'other' })
+    expect(records[0]).not.toHaveProperty('notes')
+  })
+
+
   it('derives a revise record from a send_message with a Revise: prefix', () => {
     const events = [
       event('request/header', 1000, { header: { config: { model: 'm1' } } }),
@@ -80,6 +92,17 @@ describe('deriveProcesses', () => {
     expect(records).toHaveLength(1)
     expect(records[0]).toMatchObject({ step: 'translate' })
   })
+
+  it('ignores an empty model header', () => {
+    const events = [
+      event('request/header', 1000, { header: { config: { model: '' } } }),
+      call('subagent', 2000, 'Translate chapter 1'),
+    ]
+    const records = deriveProcesses(events)
+    expect(records[0]).toMatchObject({ step: 'translate' })
+    expect(records[0]).not.toHaveProperty('model')
+  })
+
 
   it('derives step records from itranslation_dispatch calls', () => {
     const events = [
@@ -106,6 +129,15 @@ describe('deriveProcesses', () => {
     expect(deriveProcesses(events)).toEqual([])
   })
 
+  it('derives a translate record without a slug', () => {
+    const events = [
+      event('tool/call', 1000, { name: 'itranslation_dispatch', arguments: JSON.stringify({ step: 'translate', chapter: 3 }) }),
+    ]
+    const records = deriveProcesses(events)
+    expect(records[0]).toMatchObject({ step: 'translate', notes: 'Translate chapter 3' })
+  })
+
+
   it('sums the parent LLM usage into one agent record', () => {
     const events = [
       event('request/header', 1000, { header: { config: { model: 'm1' } } }),
@@ -122,6 +154,55 @@ describe('deriveProcesses', () => {
     expect(records[0]?.startedAt).toBe(new Date(1100).toISOString())
     expect(records[0]?.finishedAt).toBe(new Date(1200).toISOString())
   })
+
+  it('omits model when the log has no request header', () => {
+    const events = [
+      event('tool/call', 1000, { name: 'itranslation_dispatch', arguments: JSON.stringify({ slug: 's', step: 'pre-read' }) }),
+      event('tool/call', 2000, { name: 'send_message', arguments: JSON.stringify({ subagent_id: 'a', message: 'Revise: fix it' }) }),
+      event('assistant/message', 3000, { usage: { inputTokens: 1, outputTokens: 2 } }),
+    ]
+    const records = deriveProcesses(events)
+    expect(records).toHaveLength(3)
+    expect(records.every(record => !('model' in record))).toBe(true)
+    expect(records[2]).toMatchObject({ step: 'agent', tokenUsage: { input: 1, output: 2 } })
+  })
+
+  it('sums cache-write and reasoning tokens when present', () => {
+    const events = [
+      event('assistant/message', 1000, {
+        usage: {
+          inputTokens: 10,
+          outputTokens: 5,
+          cacheReadTokens: 2,
+          cacheWriteTokens: 3,
+          reasoningTokens: 4,
+        },
+      }),
+    ]
+    const records = deriveProcesses(events)
+    expect(records[0]).toMatchObject({
+      step: 'agent',
+      tokenUsage: {
+        input: 10,
+        output: 5,
+        cacheReadTokens: 2,
+        cacheWriteTokens: 3,
+        reasoningTokens: 4,
+      },
+    })
+  })
+
+  it('defaults missing input/output token counts to zero', () => {
+    const events = [
+      event('assistant/message', 1000, { usage: { cacheReadTokens: 1 } }),
+    ]
+    const records = deriveProcesses(events)
+    expect(records[0]).toMatchObject({
+      step: 'agent',
+      tokenUsage: { input: 0, output: 0, cacheReadTokens: 1 },
+    })
+  })
+
 })
 
 describe('mergeProcessNotes', () => {
@@ -145,4 +226,17 @@ describe('mergeProcessNotes', () => {
     const derived = [{ step: 'pre-read', model: 'm1' }]
     expect(mergeProcessNotes(derived, undefined)).toEqual(derived)
   })
+
+  it('keeps derived notes when a supplied record has none', () => {
+    const derived = [{ step: 'translate', model: 'm1', notes: '已有说明' }]
+    const merged = mergeProcessNotes(derived, [{ step: 'translate', model: 'm2' }])
+    expect(merged).toEqual([{ step: 'translate', model: 'm1', notes: '已有说明' }])
+  })
+
+  it('keeps derived notes when a supplied note is empty', () => {
+    const derived = [{ step: 'translate', model: 'm1', notes: '已有说明' }]
+    const merged = mergeProcessNotes(derived, [{ step: 'translate', model: 'm2', notes: '' }])
+    expect(merged).toEqual([{ step: 'translate', model: 'm1', notes: '已有说明' }])
+  })
+
 })
