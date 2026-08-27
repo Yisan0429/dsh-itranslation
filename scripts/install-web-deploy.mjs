@@ -84,6 +84,31 @@ function fail(msg) {
   process.exitCode = 1
 }
 
+/**
+ * Resolve how to invoke the `dsh` CLI.
+ *
+ * Priority:
+ *   1. `DSH_BIN` env — an explicit command or absolute executable path.
+ *   2. `dsh` on PATH — the normal installed CLI.
+ *   3. The DeepSeek Harness source checkout's built bin, which is common in
+ *      this repo's local development layout (`../deepseek-harness`).
+ */
+function resolveDshCommand() {
+  if (process.env.DSH_BIN) return { command: process.env.DSH_BIN, args: [] }
+
+  const probe = spawnSync('dsh', ['--version'], { stdio: 'ignore' })
+  if (probe.error === undefined) return { command: 'dsh', args: [] }
+
+  const candidates = [
+    join(repoRoot, '..', 'deepseek-harness', 'apps', 'cli', 'lib', 'bin.js'),
+    join(process.env.HOME ?? '', 'deepseek-harness', 'apps', 'cli', 'lib', 'bin.js'),
+  ]
+  for (const candidate of candidates) {
+    if (existsSync(candidate)) return { command: process.execPath, args: [candidate] }
+  }
+  return null
+}
+
 // 1) —— pnpm-workspace.yaml 写入本地 overrides ——
 if (!existsSync(workspacePath)) {
   fail(`profile pnpm-workspace.yaml 不存在：${workspacePath}（请确认 DSH web profile 已初始化）`)
@@ -130,22 +155,22 @@ if (!existsSync(profilePkgPath)) {
   if (apply) packPackages()
   const bundleRel = relative(PROFILE, bundlePackage.tarballPath).split(require('node:path').sep).join('/')
   const spec = `file:${bundleRel}`
-  log(`${apply ? '执行' : '将要执行'} dsh plugin --profile ${PROFILE_NAME} add ${spec}`)
-  if (apply) {
-    const result = spawnSync('dsh', ['plugin', '--profile', PROFILE_NAME, 'add', spec], {
+  const dsh = resolveDshCommand()
+  if (dsh === null) {
+    fail('找不到 dsh 命令：请把 DSH 的 bin 加入 PATH，或设置 DSH_BIN 环境变量指向 dsh 可执行文件')
+  } else {
+    log(`${apply ? '执行' : '将要执行'} ${dsh.command} ${dsh.args.join(' ')} plugin --profile ${PROFILE_NAME} add ${spec}`)
+  }
+  if (apply && dsh !== null) {
+    const result = spawnSync(dsh.command, [...dsh.args, 'plugin', '--profile', PROFILE_NAME, 'add', spec], {
       cwd: repoRoot,
       stdio: 'inherit',
     })
     if (result.error !== undefined) {
-      if (result.error.code === 'ENOENT') {
-        fail('dsh 命令不在 PATH 上——请先安装/进入 DSH 环境，或把 DSH 的 bin 加入 PATH')
-      } else {
-        console.error(`[install-web-deploy] 无法执行 dsh：${result.error.message}`)
-        process.exit(1)
-      }
-    } else if (result.status !== 0) {
-      process.exit(result.status ?? 1)
+      console.error(`[install-web-deploy] 无法执行 dsh：${result.error.message}`)
+      process.exit(1)
     }
+    if (result.status !== 0) process.exit(result.status ?? 1)
   }
 }
 
