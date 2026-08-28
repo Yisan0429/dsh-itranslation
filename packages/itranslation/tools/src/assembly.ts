@@ -4,7 +4,7 @@
  * `TranslationMismatchError` from core into a structured `ok: false` result.
  */
 
-import { assembleBook, type BookState } from '@deepseek-ai/dsh-itranslation-core'
+import { assembleBook, type BookState } from '@yisan0429/dsh-itranslation-core'
 import { chapterTranslation } from './chapters'
 import { parseGlossary } from './glossary'
 import { isFile, readJson, readText, type ToolFsContext } from './io'

@@ -4,7 +4,7 @@
  * (non-readonly) so they match `defineTool`'s schema-inferred output types.
  */
 
-import type { MismatchKind } from '@deepseek-ai/dsh-itranslation-core'
+import type { MismatchKind } from '@yisan0429/dsh-itranslation-core'
 
 /** One chapter's title/index summary, mirroring core `ChapterState`. */
 export interface ChapterSummary {

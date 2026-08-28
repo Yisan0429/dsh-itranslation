@@ -3,7 +3,7 @@
 // 背景：`dsh plugin add` 是 DSH 官方安装插件的方式。它会在 profile 里执行
 // pnpm add，并把声明了 `dsh.bundle.patch` 的包自动加入 `dsh.profile.bundles`。
 // 本项目因此新增 `packages/itranslation/bundle`（包名
-// `@deepseek-ai/dsh-itranslation`）作为 bundle 入口；其 `cordis.patch.yml`
+// `@yisan0429/dsh-itranslation`）作为 bundle 入口；其 `cordis.patch.yml`
 // 负责插入 client 的 host Loader entry。
 //
 // 本地 monorepo 还没发布到 npm，直接 `dsh plugin add <目录>` 会遇到

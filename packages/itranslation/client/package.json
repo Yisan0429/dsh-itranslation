@@ -1,7 +1,7 @@
 {
-  "name": "@deepseek-ai/dsh-itranslation-client",
+  "name": "@yisan0429/dsh-itranslation-client",
   "description": "Client UI (run progress card, settings page) for the itranslation book translation preset",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publishConfig": {
     "access": "public"
   },
@@ -70,6 +70,6 @@
     "react-dom": "link:../../../../deepseek-harness/node_modules/.pnpm/react-dom@18.3.1_react@18.3.1/node_modules/react-dom"
   },
   "dependencies": {
-    "@deepseek-ai/dsh-itranslation-core": "workspace:^"
+    "@yisan0429/dsh-itranslation-core": "^1.0.1"
   }
 }

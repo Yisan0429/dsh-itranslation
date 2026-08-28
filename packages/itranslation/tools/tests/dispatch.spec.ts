@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { DEFAULT_PROMPTS } from '@deepseek-ai/dsh-itranslation-core'
+import { DEFAULT_PROMPTS } from '@yisan0429/dsh-itranslation-core'
 import { apply } from '../src/index'
 import { captureCtx, fakeExec, fakeExecWithAgent, run, toolByName, type CapturedCtx } from './helpers'
 

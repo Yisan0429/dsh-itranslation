@@ -6,7 +6,7 @@
  * `slugify` comes from the deterministic core engine (D42).
  */
 
-import { slugify } from '@deepseek-ai/dsh-itranslation-core'
+import { slugify } from '@yisan0429/dsh-itranslation-core'
 
 /** Top-level produce directory under the session workspace root (DESIGN.md §5.5). */
 const PRODUCE_DIR = 'produce'

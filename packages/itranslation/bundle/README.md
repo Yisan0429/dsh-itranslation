@@ -1,4 +1,4 @@
-# @deepseek-ai/dsh-itranslation
+# @yisan0429/dsh-itranslation
 
 DSH profile bundle for the Itranslation whole-book translation preset.
 

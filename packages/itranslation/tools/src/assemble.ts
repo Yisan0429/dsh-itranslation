@@ -7,7 +7,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { engineVersion, segmentParagraphs } from '@deepseek-ai/dsh-itranslation-core'
+import { engineVersion, segmentParagraphs } from '@yisan0429/dsh-itranslation-core'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { assembleBookOrMismatch, readAssemblyInputs, readTitleTranslations } from './assembly'
 import { deriveProcesses, mergeProcessNotes, type SessionEventLike } from './processes'

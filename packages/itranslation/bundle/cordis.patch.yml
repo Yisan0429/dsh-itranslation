@@ -10,4 +10,4 @@
 # (`presets/itranslation/agent.cordis.yml` references it by package name).
 - insert:
     - id: itranslation-client
-      name: '@deepseek-ai/dsh-itranslation-client'
+      name: '@yisan0429/dsh-itranslation-client'

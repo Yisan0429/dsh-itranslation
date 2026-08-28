@@ -4,7 +4,7 @@
  * `<n>.<k>.md` fragments of an over-long chapter (D48).
  */
 
-import { joinChapterFragments } from '@deepseek-ai/dsh-itranslation-core'
+import { joinChapterFragments } from '@yisan0429/dsh-itranslation-core'
 import { isFile, listDirNames, readText, type ToolFsContext } from './io'
 import { chapterRel, chaptersDirRel, fragmentRel } from './paths'
 

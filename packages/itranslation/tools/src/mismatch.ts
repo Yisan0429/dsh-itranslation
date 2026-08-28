@@ -4,7 +4,7 @@
  * data condition the agent relays to the user, not a hard tool failure).
  */
 
-import { TranslationMismatchError } from '@deepseek-ai/dsh-itranslation-core'
+import { TranslationMismatchError } from '@yisan0429/dsh-itranslation-core'
 import type { MismatchReport } from './types'
 
 /**

@@ -53,20 +53,20 @@ importers:
 
   packages/itranslation/bundle:
     dependencies:
-      '@deepseek-ai/dsh-itranslation-client':
-        specifier: workspace:^
+      '@yisan0429/dsh-itranslation-client':
+        specifier: ^1.0.1
         version: link:../client
-      '@deepseek-ai/dsh-itranslation-core':
-        specifier: workspace:^
+      '@yisan0429/dsh-itranslation-core':
+        specifier: ^1.0.1
         version: link:../core
-      '@deepseek-ai/dsh-itranslation-tools':
-        specifier: workspace:^
+      '@yisan0429/dsh-itranslation-tools':
+        specifier: ^1.0.1
         version: link:../tools
 
   packages/itranslation/client:
     dependencies:
-      '@deepseek-ai/dsh-itranslation-core':
-        specifier: workspace:^
+      '@yisan0429/dsh-itranslation-core':
+        specifier: ^1.0.1
         version: link:../core
     devDependencies:
       '@deepseek-ai/cordis':
@@ -131,8 +131,8 @@ importers:
 
   packages/itranslation/tools:
     dependencies:
-      '@deepseek-ai/dsh-itranslation-core':
-        specifier: workspace:^
+      '@yisan0429/dsh-itranslation-core':
+        specifier: ^1.0.1
         version: link:../core
     devDependencies:
       '@deepseek-ai/cordis':

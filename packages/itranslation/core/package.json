@@ -1,7 +1,7 @@
 {
-  "name": "@deepseek-ai/dsh-itranslation-core",
+  "name": "@yisan0429/dsh-itranslation-core",
   "description": "Deterministic text engine (extract/chapter/segment/assemble) for the itranslation book translation preset",
-  "version": "1.0.0",
+  "version": "1.0.1",
   "publishConfig": {
     "access": "public"
   },

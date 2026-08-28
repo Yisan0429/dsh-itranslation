@@ -4,7 +4,7 @@
  * module defensively re-validates it before any downstream tool trusts it.
  */
 
-import type { BookState, ChapterState } from '@deepseek-ai/dsh-itranslation-core'
+import type { BookState, ChapterState } from '@yisan0429/dsh-itranslation-core'
 import { readJson, type ToolFsContext } from './io'
 import { stateRel } from './paths'
 

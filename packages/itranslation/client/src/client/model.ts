@@ -6,7 +6,7 @@
 
 import type { ToolCallBlock } from '@deepseek-ai/dsh-client-runtime/client'
 
-/** Every deterministic tool registered by `@deepseek-ai/dsh-itranslation-tools` (D58). */
+/** Every deterministic tool registered by `@yisan0429/dsh-itranslation-tools` (D58). */
 export const ITRANSLATION_TOOL_NAMES = [
   'itranslation_prepare',
   'itranslation_segment',

@@ -8,4 +8,4 @@
  */
 import { clientBundle } from './tsdown.preset.ts'
 
-export default clientBundle('@deepseek-ai/dsh-itranslation-client', ['lib/types/index.js'])
+export default clientBundle('@yisan0429/dsh-itranslation-client', ['lib/types/index.js'])

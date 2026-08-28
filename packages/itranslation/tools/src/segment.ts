@@ -6,7 +6,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { segmentParagraphs } from '@deepseek-ai/dsh-itranslation-core'
+import { segmentParagraphs } from '@yisan0429/dsh-itranslation-core'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { readText, renderJson, toolFs } from './io'
 import { sourceRel } from './paths'

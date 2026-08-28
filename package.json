@@ -1,6 +1,6 @@
 {
-  "name": "@deepseek-ai/dsh-itranslation-root",
-  "version": "1.0.0",
+  "name": "@yisan0429/dsh-itranslation-root",
+  "version": "1.0.1",
   "license": "MIT",
   "private": true,
   "type": "module",

@@ -1,5 +1,5 @@
 /**
- * `@deepseek-ai/dsh-itranslation-tools` — Host tool surface and book-level
+ * `@yisan0429/dsh-itranslation-tools` — Host tool surface and book-level
  * state file management for the itranslation preset (D26/D58). Registers ten
  * deterministic tools via `ctx.tools.register(defineTool(...))`; all file
  * effects go through `ctx.fs`, resolved against the session workspace cwd

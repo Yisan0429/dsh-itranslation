@@ -30,6 +30,6 @@ describe('core package surface', () => {
   })
 
   it('stamps the deterministic engine version', () => {
-    expect(engineVersion).toBe('1.0.0')
+    expect(engineVersion).toBe('1.0.1')
   })
 })

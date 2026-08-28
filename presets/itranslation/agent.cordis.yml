@@ -5,7 +5,7 @@
 # (pipeline tools plus subagent scoped file tools and dispatch).
 #
 # Installed as a normal profile dependency through the DSH bundle
-# (`@deepseek-ai/dsh-itranslation`), so the row uses the package name. For
+# (`@yisan0429/dsh-itranslation`), so the row uses the package name. For
 # local verification before installing the bundle, temporarily point `name` at
 # the built package entry (D15).
 #
@@ -378,10 +378,10 @@
 # Registers ten `itranslation_*` tools (prepare/segment/glossary/scoped_read/
 # scoped_write/dispatch/align/assemble/status/prompts) into the host `tools` registry and provides nothing, so no
 # realm is needed — same pattern as the filesystem tool rows. The package is
-# installed by `dsh plugin --profile web add @deepseek-ai/dsh-itranslation`
+# installed by `dsh plugin --profile web add @yisan0429/dsh-itranslation`
 # (or the local bundle path) and resolves through the profile's node_modules.
 - id: itranslation-tools
-  name: '@deepseek-ai/dsh-itranslation-tools'
+  name: '@yisan0429/dsh-itranslation-tools'
 
 # ── remaining model-facing rows ─────────────────────────────────────────────
 

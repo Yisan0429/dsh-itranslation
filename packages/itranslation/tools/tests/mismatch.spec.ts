@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { TranslationMismatchError } from '@deepseek-ai/dsh-itranslation-core'
+import { TranslationMismatchError } from '@yisan0429/dsh-itranslation-core'
 import { mismatchFromError } from '../src/mismatch'
 
 describe('mismatchFromError', () => {

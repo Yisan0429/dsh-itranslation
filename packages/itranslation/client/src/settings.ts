@@ -13,7 +13,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { DEFAULT_PROMPTS } from '@deepseek-ai/dsh-itranslation-core'
+import { DEFAULT_PROMPTS } from '@yisan0429/dsh-itranslation-core'
 import z from '@deepseek-ai/schemastery'
 import { settingsNamespace } from '@deepseek-ai/dsh-settings'
 

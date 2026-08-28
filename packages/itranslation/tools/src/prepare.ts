@@ -7,7 +7,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { detectChapters } from '@deepseek-ai/dsh-itranslation-core'
+import { detectChapters } from '@yisan0429/dsh-itranslation-core'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { isFile, listDirNames, readText, renderJson, toolFs, writeJson, writeText, type ToolFsContext } from './io'
 import { readItranslationConfig } from './config'

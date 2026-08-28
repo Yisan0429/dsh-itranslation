@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { engineVersion } from '@deepseek-ai/dsh-itranslation-core'
+import { engineVersion } from '@yisan0429/dsh-itranslation-core'
 import { apply } from '../src/index'
 import type { MetaFile } from '../src/types'
 import { captureCtx, fakeExec, run, toolByName, type CapturedCtx } from './helpers'

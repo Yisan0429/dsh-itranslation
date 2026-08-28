@@ -1,7 +1,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/agent%20preset-Itranslation-536DFE" alt="Preset">
   <img src="https://img.shields.io/badge/license-MIT-green" alt="License">
-  <img src="https://img.shields.io/badge/version-1.0.0-536DFE" alt="Version">
+  <img src="https://img.shields.io/badge/version-1.0.1-536DFE" alt="Version">
   <img src="https://img.shields.io/badge/platform-DeepSeek%20Harness-lightgrey" alt="Platform">
 </p>
 
@@ -51,7 +51,7 @@ dsh web                                   # 重启生效
 ```
 
 `install-web-deploy.mjs --apply` 现在走的是 DSH 官方插件通道：它把
-`packages/itranslation/bundle`（`@deepseek-ai/dsh-itranslation`）连同
+`packages/itranslation/bundle`（`@yisan0429/dsh-itranslation`）连同
 core/tools/client 打成 tarball，然后用 `dsh plugin --profile web add file:<bundle>.tgz`
 安装。DSH 会自动把该 bundle 加入 `dsh.profile.bundles` 并加载其
 `cordis.patch.yml`（插入 client host entry）。脚本随后还会自动同步
@@ -60,7 +60,7 @@ agent preset 到 `~/.dsh/.agent-presets/itranslation/`。
 ### 方式二：已发布到 npm 后
 
 ```bash
-dsh plugin --profile web add @deepseek-ai/dsh-itranslation
+dsh plugin --profile web add @yisan0429/dsh-itranslation
 ```
 
 安装后仍需同步 agent preset：

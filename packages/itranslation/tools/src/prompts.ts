@@ -10,7 +10,7 @@
  */
 
 import type { Context } from '@deepseek-ai/cordis'
-import { DEFAULT_PROMPTS } from '@deepseek-ai/dsh-itranslation-core'
+import { DEFAULT_PROMPTS } from '@yisan0429/dsh-itranslation-core'
 import { defineTool } from '@deepseek-ai/dsh-tools'
 import { renderJson } from './io'
 
