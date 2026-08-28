@@ -1,7 +1,7 @@
 {
   "name": "@yisan0429/dsh-itranslation",
   "description": "Itranslation whole-book translation preset as a DSH profile bundle (host client UI + tool dependencies)",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publishConfig": {
     "access": "public"
   },
@@ -16,9 +16,9 @@
     "README.md"
   ],
   "dependencies": {
-    "@yisan0429/dsh-itranslation-client": "^1.0.1",
-    "@yisan0429/dsh-itranslation-core": "^1.0.1",
-    "@yisan0429/dsh-itranslation-tools": "^1.0.1"
+    "@yisan0429/dsh-itranslation-client": "^1.0.2",
+    "@yisan0429/dsh-itranslation-core": "^1.0.2",
+    "@yisan0429/dsh-itranslation-tools": "^1.0.2"
   },
   "license": "MIT"
 }

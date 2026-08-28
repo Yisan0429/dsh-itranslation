@@ -1,7 +1,7 @@
 {
   "name": "@yisan0429/dsh-itranslation-tools",
   "description": "Host tool surface and book-level state file management for the itranslation book translation preset",
-  "version": "1.0.1",
+  "version": "1.0.2",
   "publishConfig": {
     "access": "public"
   },
@@ -22,7 +22,7 @@
   ],
   "license": "MIT",
   "dependencies": {
-    "@yisan0429/dsh-itranslation-core": "^1.0.1"
+    "@yisan0429/dsh-itranslation-core": "^1.0.2"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "*",
