@@ -71,5 +71,10 @@
   },
   "dependencies": {
     "@yisan0429/dsh-itranslation-core": "^1.0.2"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yisan0429/dsh-itranslation.git",
+    "directory": "packages/itranslation/client"
   }
 }

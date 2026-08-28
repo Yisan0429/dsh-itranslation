@@ -35,5 +35,10 @@
     "@deepseek-ai/dsh-fs": "link:../../../../deepseek-harness/packages/fs/fs",
     "@deepseek-ai/dsh-tools": "link:../../../../deepseek-harness/packages/core/tools",
     "@deepseek-ai/schemastery": "link:../../../../deepseek-harness/vendor/schemastery"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/Yisan0429/dsh-itranslation.git",
+    "directory": "packages/itranslation/tools"
   }
 }
